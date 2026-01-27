@@ -102,6 +102,55 @@ Esempio con `psql`:
 psql -h localhost -U cinofilo -d cinofilo
 ```
 
+## Avvio Backend
+
+### Prerequisiti
+- Java 21 o superiore
+- Maven
+- PostgreSQL in esecuzione (opzionale per lo sviluppo iniziale)
+
+### Avvio dell'applicazione Spring Boot
+
+```bash
+# Posizionarsi nella cartella backend
+cd backend
+
+# Installare dipendenze Maven (opzionale, verrà fatto automaticamente)
+mvn clean install
+
+# Avviare l'applicazione
+mvn spring-boot:run
+
+# Oppure compilare e lanciare il JAR
+mvn clean package
+java -jar target/backend-1.0.0.jar
+```
+
+### Configurazione database
+
+L'applicazione legge le configurazioni del database da variabili di ambiente:
+
+```bash
+# Con Docker Postgres in esecuzione
+mvn spring-boot:run
+
+# Oppure con configurazione personalizzata
+mvn spring-boot:run -Dspring-boot.run.arguments="--DB_HOST=localhost --DB_PORT=5432 --DB_NAME=cinofilo --DB_USER=cinofilo --DB_PASSWORD=cinofilo"
+```
+
+### Endpoint di prova
+
+Una volta avviato, l'applicazione sarà disponibile su `http://localhost:8080/api`
+
+- **Health Check**: `GET http://localhost:8080/api/health` → `{"status": "ok"}`
+- **Actuator**: `GET http://localhost:8080/api/actuator/health`
+
+### Flyway Migrations
+
+Le migrazioni del database si trovano in `src/main/resources/db/migration/`. Flyway si esegue automaticamente all'avvio dell'applicazione:
+- La baseline iniziale si trova in `V1__init.sql`
+- Per aggiungere nuove migrazioni, creare file nominati come `V<numero>__<descrizione>.sql`
+
 ## Contribuzione
 
 Per maggiori informazioni sulla struttura, vedi la documentazione in `docs/`.

@@ -280,6 +280,265 @@ Quando il codice in `dev` è stabile e pronto per il deploy:
 # Il codice in main deve sempre essere pronto per il deploy in produzione
 ```
 
+## Project Context (for AI/Copilot)
+
+Questa sezione fornisce il contesto completo del progetto per assistenti AI come GitHub Copilot. Consultare questa sezione quando si sviluppa nuove feature o si modificano il codice.
+
+### Stack Tecnologico
+
+| Componente | Tecnologia | Versione |
+|-----------|-----------|---------|
+| **Backend API** | Spring Boot | 3.2.0 |
+| **Linguaggio Backend** | Java | 21 |
+| **Build Backend** | Maven | Latest |
+| **Database** | PostgreSQL | 16 |
+| **Frontend** | Angular | 17 |
+| **Linguaggio Frontend** | TypeScript | 5.2 |
+| **Package Manager Frontend** | npm | Latest |
+| **Container** | Docker & Docker Compose | Latest |
+| **Version Control** | Git | Latest |
+
+### Struttura delle Cartelle Dettagliata
+
+```
+centro-cinofilo/
+├── backend/                          # Spring Boot Java Application
+│   ├── pom.xml                       # Maven configuration
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/it/cinofilo/     # Package principale
+│   │   │   │   ├── CinofiloApplication.java  # Spring Boot main class
+│   │   │   │   └── controller/       # REST Controllers
+│   │   │   │       └── HealthController.java
+│   │   │   └── resources/
+│   │   │       ├── application.yml   # Spring configuration
+│   │   │       └── db/migration/     # Flyway migrations
+│   │   │           └── V1__init.sql
+│   │   └── test/                     # Unit tests
+│   └── target/                       # Build output (Maven)
+│
+├── frontend/                         # Angular Application
+│   ├── package.json                  # npm configuration
+│   ├── angular.json                  # Angular CLI config
+│   ├── tsconfig.json                 # TypeScript configuration
+│   ├── .eslintrc.js                  # ESLint rules
+│   ├── .prettierrc.json              # Prettier formatting
+│   ├── src/
+│   │   ├── index.html                # HTML entry point
+│   │   ├── main.ts                   # TypeScript entry point
+│   │   ├── styles.css                # Global styles
+│   │   └── app/
+│   │       ├── app.module.ts         # Main module
+│   │       ├── app-routing.module.ts # Routing configuration
+│   │       ├── app.component.*       # Root component
+│   │       └── pages/
+│   │           └── home/             # Home page component
+│   └── dist/                         # Build output (Angular)
+│
+├── infra/
+│   └── docker/
+│       └── docker-compose.yml        # Docker services (PostgreSQL)
+│
+├── docs/                             # Project documentation
+│
+├── .gitattributes                    # Git line ending normalization
+├── .gitignore                        # Git ignore rules
+├── .editorconfig                     # Editor configuration
+├── .env.example                      # Environment variables example
+└── README.md                         # This file
+```
+
+### Come Avviare l'Ambiente Locale
+
+#### 1. Setup Iniziale
+
+```bash
+# Clonare il repository
+git clone <repo-url>
+cd centro-cinofilo
+
+# Copiare le variabili di ambiente
+cp .env.example .env
+```
+
+#### 2. Avviare PostgreSQL
+
+```bash
+# Nella radice del progetto
+docker-compose -f infra/docker/docker-compose.yml up -d
+
+# Verificare che sia in esecuzione
+docker-compose -f infra/docker/docker-compose.yml ps
+```
+
+Credenziali default:
+- Host: `localhost`
+- Port: `5432`
+- Database: `cinofilo`
+- Username: `cinofilo`
+- Password: `cinofilo`
+
+#### 3. Avviare il Backend
+
+```bash
+# Nella directory backend
+cd backend
+
+# Build e avvio
+mvn clean install
+mvn spring-boot:run
+
+# L'applicazione sarà disponibile su http://localhost:8080/api
+```
+
+Test endpoint:
+```bash
+curl http://localhost:8080/api/health
+# Risposta: {"status":"ok"}
+```
+
+#### 4. Avviare il Frontend
+
+```bash
+# Nella directory frontend
+cd frontend
+
+# Installare dipendenze (prima volta)
+npm install
+
+# Avviare il dev server
+npm run dev
+
+# L'applicazione sarà disponibile su http://localhost:4200
+```
+
+### Regole Base di Sviluppo
+
+#### 1. Naming Conventions
+
+**Backend (Java):**
+- Packages: `it.cinofilo.<dominio>` (es: `it.cinofilo.controller`, `it.cinofilo.service`)
+- Classes: PascalCase (es: `UserController`, `AuthenticationService`)
+- Methods: camelCase (es: `getUserById()`, `createNewUser()`)
+- Constants: UPPER_SNAKE_CASE
+
+**Frontend (TypeScript/Angular):**
+- Components: PascalCase + `.component.ts` (es: `HomeComponent`, `UserListComponent`)
+- Services: PascalCase + `.service.ts` (es: `UserService`, `AuthService`)
+- Methods: camelCase
+- Constants: UPPER_SNAKE_CASE
+
+#### 2. Multi-Tenancy (Future Implementation)
+
+Il progetto è progettato per supportare multi-tenancy nel futuro. Le seguenti linee guida devono essere seguite:
+
+- **Ogni entità che sarà tenant-aware deve avere un campo `tenant_id`**: (UUID o Long)
+- **Nel backend**: Aggiungere sempre il filtro `tenant_id` nelle query JPA
+- **Nel frontend**: Passare sempre `tenant_id` nelle richieste API (header o parametro)
+- **Nelle migrazioni SQL**: Includere colonna `tenant_id` in tutte le future tabelle di business logic
+
+Esempio futura entità:
+```java
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    
+    @Column(nullable = false)
+    private UUID tenantId;  // Multi-tenancy support
+    
+    private String name;
+    // ...
+}
+```
+
+#### 3. Conventional Commits
+
+Tutti i commit devono seguire il formato Conventional Commits:
+
+```
+<type>(<scope>): <subject>
+```
+
+Esempi:
+```
+feat(backend): add user authentication endpoint
+fix(frontend): resolve navbar styling issue on mobile
+docs: update database migration guide
+chore(backend): update spring boot to 3.3.0
+test(backend): add unit tests for UserService
+```
+
+#### 4. Branching Strategy
+
+- **Lavoro su feature locali**: Creare branch `feature/<nome-feature>` da `dev`
+- **Prima di fare commit**: Assicurarsi di essere su branch `feature/*`
+- **Pull Request**: Sempre verso `dev`, mai direttamente a `main`
+- **Main**: Reserved per release stabili
+
+```bash
+# Flusso tipico
+git checkout dev
+git pull origin dev
+git checkout -b feature/mia-feature
+# ... fare il lavoro ...
+git add .
+git commit -m "feat(backend): add dog profile endpoint"
+git push origin feature/mia-feature
+# Creare PR su GitHub verso dev
+```
+
+#### 5. Code Quality
+
+**Backend:**
+- Usare Lombok per ridurre boilerplate
+- Aggiungere sempre `@Slf4j` ai controller e service
+- Scrivere test unitari per la logica di business
+- Utilizzare validazioni `@Valid` nei controller
+
+**Frontend:**
+- Eseguire ESLint prima del commit: `npm run lint`
+- Formattare il codice: `npm run format`
+- Usare reactive programming con RxJS dove appropriato
+- Tipare sempre le variabili e i return dei metodi
+
+#### 6. Database Migrations (Flyway)
+
+- Nuove migration vanno in `backend/src/main/resources/db/migration/`
+- Naming: `V<numero_progressivo>__<descrizione>.sql`
+- Esempio: `V2__add_users_table.sql`
+- **Importante**: Non modificare file di migration già committati!
+
+### Development Tools
+
+**Backend Development:**
+- IDE consigliato: IntelliJ IDEA o VS Code con Extension Pack for Java
+- Linter: Built-in Java linter
+- Formatter: IntelliJ IDEA formatter o VS Code
+
+**Frontend Development:**
+- IDE consigliato: VS Code con Angular Language Service
+- Linter: ESLint (`npm run lint`)
+- Formatter: Prettier (`npm run format`)
+
+### Debugging
+
+**Backend:**
+- Health check: `GET http://localhost:8080/api/health`
+- Actuator metrics: `GET http://localhost:8080/api/actuator/metrics`
+- Logs: Visibili in console quando si esegue `mvn spring-boot:run`
+
+**Frontend:**
+- Browser DevTools (F12)
+- Angular DevTools extension per Chrome
+- Logs: Console del browser
+
+### Contatti e Supporto
+
+Per dubbi sulla struttura o sulle convenzioni, consultare la documentazione in `docs/` o il README.
+
 ## Contribuzione
 
 Per maggiori informazioni sulla struttura, vedi la documentazione in `docs/`.

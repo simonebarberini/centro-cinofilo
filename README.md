@@ -64,6 +64,44 @@ cd backend && npm test
 cd frontend && npm test
 ```
 
+## Avvio DB locale
+
+### Prerequisiti
+- Docker e Docker Compose installati
+- File `.env` configurato (copia da `.env.example` se necessario)
+
+### Avvio del database PostgreSQL
+
+```bash
+# Avviare il container PostgreSQL
+docker-compose -f infra/docker/docker-compose.yml up -d
+
+# Verificare lo stato del container
+docker-compose -f infra/docker/docker-compose.yml ps
+
+# Visualizzare i log
+docker-compose -f infra/docker/docker-compose.yml logs -f postgres
+
+# Fermare il database
+docker-compose -f infra/docker/docker-compose.yml down
+
+# Fermare e rimuovere il volume (reset completo)
+docker-compose -f infra/docker/docker-compose.yml down -v
+```
+
+### Connessione al database
+
+**Host**: localhost  
+**Porta**: 5432  
+**Database**: cinofilo  
+**Username**: cinofilo  
+**Password**: cinofilo
+
+Esempio con `psql`:
+```bash
+psql -h localhost -U cinofilo -d cinofilo
+```
+
 ## Contribuzione
 
 Per maggiori informazioni sulla struttura, vedi la documentazione in `docs/`.

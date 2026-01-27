@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: centro-cinofilo-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cinofilo}
+      POSTGRES_USER: ${POSTGRES_USER:-cinofilo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cinofilo}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cinofilo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - centro-cinofilo-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  centro-cinofilo-network:
+    driver: bridge

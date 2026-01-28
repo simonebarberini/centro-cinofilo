@@ -37,14 +37,14 @@ public class SecurityConfig {
     /**
      * Security filter chain for public endpoints.
      * Order(1) ensures this chain is evaluated first for matching requests.
-     * Matchers MUST include context-path prefix when server.servlet.context-path is set.
+     * MVC matchers automatically handle context-path, so use paths WITHOUT /api prefix.
      */
     @Bean
     @Order(1)
     public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatchers(matchers -> matchers
-                .requestMatchers("/api/auth/**", "/api/actuator/**", "/api/health")
+                .requestMatchers("/auth/**", "/actuator/**", "/health")
             )
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth

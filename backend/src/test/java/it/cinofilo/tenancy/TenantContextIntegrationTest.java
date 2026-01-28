@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.cinofilo.AbstractPostgresIT;
 import it.cinofilo.auth.LoginRequest;
 import it.cinofilo.auth.LoginResponse;
+import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.security.JwtService;
 import it.cinofilo.users.AppUser;
 import it.cinofilo.users.AppUserRepository;
@@ -43,6 +44,9 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
     private AppUserRepository appUserRepository;
 
     @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -55,7 +59,8 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() {
-        // Clean database
+        // Clean database - must delete in order due to foreign key constraints
+        customerRepository.deleteAll();
         appUserRepository.deleteAll();
         tenantRepository.deleteAll();
 
@@ -84,7 +89,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
     void shouldPopulateTenantContextWhenCallingProtectedEndpointWithValidJwt() throws Exception {
         // Given - login to get JWT token
         LoginRequest loginRequest = new LoginRequest(uniqueSlug, "contextuser", TEST_PASSWORD);
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        String loginResponse = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
@@ -96,7 +101,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
         String token = response.getToken();
 
         // When - call protected endpoint with valid JWT
-        String contextResponse = mockMvc.perform(get("/api/_test/tenant-context/current")
+        String contextResponse = mockMvc.perform(get("/_test/tenant-context/current")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -114,7 +119,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
     @Test
     void shouldNotPopulateTenantContextWhenNotAuthenticated() throws Exception {
         // When - call protected endpoint without token
-        mockMvc.perform(get("/api/_test/tenant-context/current")
+        mockMvc.perform(get("/_test/tenant-context/current")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
     }
@@ -122,7 +127,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
     @Test
     void shouldNotPopulateTenantContextWithInvalidToken() throws Exception {
         // When - call protected endpoint with invalid token
-        mockMvc.perform(get("/api/_test/tenant-context/current")
+        mockMvc.perform(get("/_test/tenant-context/current")
                         .header("Authorization", "Bearer invalid.token.here")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());

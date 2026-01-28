@@ -1,6 +1,7 @@
 package it.cinofilo.tenancy;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +15,8 @@ import java.util.UUID;
  * This controller is used exclusively in integration tests and is not available in production.
  */
 @RestController
-@RequestMapping("/api/_test/tenant-context")
+@RequestMapping("/_test/tenant-context")
+@Profile("test")
 public class TenantContextTestController {
 
     /**

@@ -102,7 +102,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
 
         // Get JWT token for tenant A
         LoginRequest loginA = new LoginRequest(tenantA.getSlug(), "userA", TEST_PASSWORD);
-        String loginResponseA = mockMvc.perform(post("/api/auth/login")
+        String loginResponseA = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginA)))
                 .andExpect(status().isOk())
@@ -114,7 +114,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
 
         // Get JWT token for tenant B
         LoginRequest loginB = new LoginRequest(tenantB.getSlug(), "userB", TEST_PASSWORD);
-        String loginResponseB = mockMvc.perform(post("/api/auth/login")
+        String loginResponseB = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginB)))
                 .andExpect(status().isOk())
@@ -137,7 +137,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .build();
 
         // When/Then
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post("/customers")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -155,7 +155,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
         createCustomerInTenantA("Jane", "Smith");
 
         // When/Then
-        mockMvc.perform(get("/api/customers")
+        mockMvc.perform(get("/customers")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -168,7 +168,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
         Customer customer = createCustomerInTenantA("John", "Doe");
 
         // When/Then
-        mockMvc.perform(get("/api/customers/" + customer.getId())
+        mockMvc.perform(get("/customers/" + customer.getId())
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -190,7 +190,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .build();
 
         // When/Then
-        mockMvc.perform(put("/api/customers/" + customer.getId())
+        mockMvc.perform(put("/customers/" + customer.getId())
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
@@ -205,7 +205,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
         Customer customer = createCustomerInTenantA("John", "Doe");
 
         // When/Then
-        mockMvc.perform(delete("/api/customers/" + customer.getId())
+        mockMvc.perform(delete("/customers/" + customer.getId())
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
@@ -220,7 +220,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
         Customer customer = createCustomerInTenantA("John", "Doe");
 
         // When/Then - tenant B tries to access it
-        mockMvc.perform(get("/api/customers/" + customer.getId())
+        mockMvc.perform(get("/customers/" + customer.getId())
                         .header("Authorization", "Bearer " + tokenB)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
@@ -233,7 +233,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
         createCustomerInTenantB("Jane", "B");
 
         // When/Then - tenant A lists customers, should only see their own
-        mockMvc.perform(get("/api/customers")
+        mockMvc.perform(get("/customers")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -244,7 +244,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
     @Test
     void shouldReturn401WhenNoToken() throws Exception {
         // When/Then
-        mockMvc.perform(get("/api/customers")
+        mockMvc.perform(get("/customers")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
     }

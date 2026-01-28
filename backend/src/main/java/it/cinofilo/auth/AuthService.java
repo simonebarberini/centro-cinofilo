@@ -25,7 +25,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         // Resolve tenant by slug
         Tenant tenant = tenantRepository.findBySlug(request.getTenantSlug())
-                .orElseThrow(() -> new TenantNotFoundException("Tenant not found: " + request.getTenantSlug()));
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
         // Find user by tenantId and username
         AppUser user = userRepository.findByTenantIdAndUsername(tenant.getId(), request.getUsername())

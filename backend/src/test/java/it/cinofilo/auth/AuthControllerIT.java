@@ -88,7 +88,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -105,7 +105,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", "WrongPassword");
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -117,7 +117,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest(uniqueSlug, "nonexistent", TEST_PASSWORD);
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -129,7 +129,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest("nonexistent-tenant", "testowner", TEST_PASSWORD);
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -150,7 +150,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest(uniqueSlug, "disabled", TEST_PASSWORD);
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -160,7 +160,7 @@ class AuthControllerIT extends AbstractPostgresIT {
     void shouldLoginSuccessfullyAndTokenIsValidated() throws Exception {
         // Given - Get token through login
         LoginRequest loginRequest = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        String loginResponse = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
@@ -181,12 +181,12 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Test
     void shouldReturn401OnMissingToken() throws Exception {
         // Given - A protected endpoint that requires authentication
-        // Note: Since all endpoints except /api/auth/** and /api/health require auth,
+        // Note: Since all endpoints except /auth/** and /health require auth,
         // we'd need a custom endpoint to test this properly
         // For now, verify that accessing a non-existent protected endpoint without token fails
         
         // When/Then
-        mockMvc.perform(get("/api/some-protected-endpoint"))
+        mockMvc.perform(get("/some-protected-endpoint"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -196,7 +196,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         String invalidToken = "invalid.jwt.token";
 
         // When/Then
-        mockMvc.perform(get("/api/some-protected-endpoint")
+        mockMvc.perform(get("/some-protected-endpoint")
                         .header("Authorization", "Bearer " + invalidToken))
                 .andExpect(status().isUnauthorized());
     }
@@ -207,7 +207,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         String invalidRequest = "{\"tenantSlug\":\"\",\"username\":\"test\",\"password\":\"test\"}";
 
         // When/Then
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest());
@@ -219,7 +219,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
 
         // When/Then - Should NOT return 401 for missing token, should process login
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -231,7 +231,7 @@ class AuthControllerIT extends AbstractPostgresIT {
         // Given - No Authorization header
 
         // When/Then - Protected endpoint should return 401
-        mockMvc.perform(get("/api/customers")
+        mockMvc.perform(get("/customers")
                         .header("X-Tenant-Slug", uniqueSlug))
                 .andExpect(status().isUnauthorized());
     }

@@ -1,6 +1,5 @@
 package it.cinofilo.config;
 
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import it.cinofilo.security.JwtAuthenticationConverter;
 import it.cinofilo.security.JwtService;
 import it.cinofilo.security.TenantContextFilter;
@@ -8,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,7 +17,6 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 import javax.crypto.SecretKey;
@@ -35,12 +34,38 @@ public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    /**
+     * Security filter chain for public endpoints.
+     * Order(1) ensures this chain is evaluated first for matching requests.
+     * Matchers MUST include context-path prefix when server.servlet.context-path is set.
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatchers(matchers -> matchers
+                .requestMatchers("/api/auth/**", "/api/actuator/**", "/api/health")
+            )
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll()
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            );
+        
+        return http.build();
+    }
+
+    /**
+     * Security filter chain for protected endpoints.
+     * Requires JWT authentication and sets up tenant context.
+     */
+    @Bean
+    public SecurityFilterChain protectedSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/api/auth/**", "/health", "/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

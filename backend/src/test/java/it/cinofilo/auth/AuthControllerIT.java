@@ -225,4 +225,14 @@ class AuthControllerIT extends AbstractPostgresIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty());
     }
+
+    @Test
+    void shouldRequireAuthenticationForProtectedEndpoints() throws Exception {
+        // Given - No Authorization header
+
+        // When/Then - Protected endpoint should return 401
+        mockMvc.perform(get("/api/customers")
+                        .header("X-Tenant-Slug", uniqueSlug))
+                .andExpect(status().isUnauthorized());
+    }
 }

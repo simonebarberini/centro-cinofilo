@@ -26,4 +26,13 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
      * @return the customer if found and belongs to the tenant
      */
     Optional<Customer> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    /**
+     * Check if a customer exists by ID and tenant ID.
+     *
+     * @param id the customer ID
+     * @param tenantId the tenant ID
+     * @return true if customer exists in the tenant
+     */
+    boolean existsByIdAndTenantId(UUID id, UUID tenantId);
 }

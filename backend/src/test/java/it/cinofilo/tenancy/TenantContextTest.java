@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TenantContextTest {
 
@@ -30,7 +31,15 @@ class TenantContextTest {
     @Test
     void shouldReturnNullWhenNotSet() {
         // When/Then
-        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getTenantIdOrNull()).isNull();
+    }
+
+    @Test
+    void shouldThrowExceptionWhenGetTenantIdNotSet() {
+        // When/Then
+        assertThatThrownBy(TenantContext::getTenantId)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("TenantContext not set");
     }
 
     @Test
@@ -43,7 +52,7 @@ class TenantContextTest {
         TenantContext.clear();
 
         // Then
-        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getTenantIdOrNull()).isNull();
     }
 
     @Test
@@ -60,5 +69,15 @@ class TenantContextTest {
 
         // Then
         assertThat(TenantContext.getTenantId()).isEqualTo(tenantId2);
+    }
+
+    @Test
+    void shouldReturnValueWithGetTenantIdOrNull() {
+        // Given
+        UUID tenantId = UUID.randomUUID();
+        TenantContext.setTenantId(tenantId);
+
+        // When/Then
+        assertThat(TenantContext.getTenantIdOrNull()).isEqualTo(tenantId);
     }
 }

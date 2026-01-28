@@ -21,10 +21,26 @@ public class TenantContext {
 
     /**
      * Get the tenant ID for the current thread.
+     * Throws an exception if the tenant context is not set.
+     *
+     * @return the UUID of the current tenant
+     * @throws IllegalStateException if tenant context is not set
+     */
+    public static UUID getTenantId() {
+        UUID tenantId = tenantIdHolder.get();
+        if (tenantId == null) {
+            throw new IllegalStateException("TenantContext not set");
+        }
+        return tenantId;
+    }
+
+    /**
+     * Get the tenant ID for the current thread, or null if not set.
+     * Use this method when you need to handle cases where tenant context may not be available.
      *
      * @return the UUID of the current tenant, or null if not set
      */
-    public static UUID getTenantId() {
+    public static UUID getTenantIdOrNull() {
         return tenantIdHolder.get();
     }
 

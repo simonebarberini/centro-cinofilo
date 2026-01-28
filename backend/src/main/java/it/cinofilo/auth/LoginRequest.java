@@ -10,6 +10,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginRequest {
 
+    @NotBlank(message = "Tenant slug is required")
+    private String tenantSlug;
+
     @NotBlank(message = "Username is required")
     private String username;
 

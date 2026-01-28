@@ -19,6 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -51,6 +53,7 @@ class AuthControllerIT extends AbstractPostgresIT {
     private Tenant testTenant;
     private AppUser testUser;
     private static final String TEST_PASSWORD = "Password123!";
+    private String uniqueSlug;
 
     @BeforeEach
     void setUp() {
@@ -58,10 +61,12 @@ class AuthControllerIT extends AbstractPostgresIT {
         appUserRepository.deleteAll();
         tenantRepository.deleteAll();
 
-        // Create test tenant
+        // Create test tenant with unique slug
+        uniqueSlug = "test-tenant-" + UUID.randomUUID();
         testTenant = Tenant.builder()
                 .name("Test Tenant")
                 .type("PENSIONE")
+                .slug(uniqueSlug)
                 .capacityBoxes(10)
                 .build();
         testTenant = tenantRepository.save(testTenant);
@@ -80,7 +85,7 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Test
     void shouldLoginSuccessfullyAndReturnToken() throws Exception {
         // Given
-        LoginRequest request = new LoginRequest("testowner", TEST_PASSWORD);
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
 
         // When/Then
         mockMvc.perform(post("/api/auth/login")
@@ -97,7 +102,7 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Test
     void shouldReturn401OnInvalidPassword() throws Exception {
         // Given
-        LoginRequest request = new LoginRequest("testowner", "WrongPassword");
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", "WrongPassword");
 
         // When/Then
         mockMvc.perform(post("/api/auth/login")
@@ -109,7 +114,19 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Test
     void shouldReturn401OnNonExistentUser() throws Exception {
         // Given
-        LoginRequest request = new LoginRequest("nonexistent", TEST_PASSWORD);
+        LoginRequest request = new LoginRequest(uniqueSlug, "nonexistent", TEST_PASSWORD);
+
+        // When/Then
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401OnNonExistentTenant() throws Exception {
+        // Given
+        LoginRequest request = new LoginRequest("nonexistent-tenant", "testowner", TEST_PASSWORD);
 
         // When/Then
         mockMvc.perform(post("/api/auth/login")
@@ -130,7 +147,7 @@ class AuthControllerIT extends AbstractPostgresIT {
                 .build();
         appUserRepository.save(disabledUser);
 
-        LoginRequest request = new LoginRequest("disabled", TEST_PASSWORD);
+        LoginRequest request = new LoginRequest(uniqueSlug, "disabled", TEST_PASSWORD);
 
         // When/Then
         mockMvc.perform(post("/api/auth/login")
@@ -142,7 +159,7 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Test
     void shouldLoginSuccessfullyAndTokenIsValidated() throws Exception {
         // Given - Get token through login
-        LoginRequest loginRequest = new LoginRequest("testowner", TEST_PASSWORD);
+        LoginRequest loginRequest = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
         String loginResponse = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
@@ -186,8 +203,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn400OnMissingLoginFields() throws Exception {
-        // Given - Request with empty username
-        String invalidRequest = "{\"username\":\"\",\"password\":\"test\"}";
+        // Given - Request with empty tenantSlug
+        String invalidRequest = "{\"tenantSlug\":\"\",\"username\":\"test\",\"password\":\"test\"}";
 
         // When/Then
         mockMvc.perform(post("/api/auth/login")

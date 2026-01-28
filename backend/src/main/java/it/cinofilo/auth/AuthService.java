@@ -1,6 +1,8 @@
 package it.cinofilo.auth;
 
 import it.cinofilo.security.JwtService;
+import it.cinofilo.tenancy.Tenant;
+import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUser;
 import it.cinofilo.users.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final AppUserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -20,21 +23,25 @@ public class AuthService {
     private long expirationMs;
 
     public LoginResponse login(LoginRequest request) {
-        // Trova user per username (query su tutte le tenant)
-        AppUser user = userRepository.findByUsername(request.getUsername())
+        // Resolve tenant by slug
+        Tenant tenant = tenantRepository.findBySlug(request.getTenantSlug())
+                .orElseThrow(() -> new TenantNotFoundException("Tenant not found: " + request.getTenantSlug()));
+
+        // Find user by tenantId and username
+        AppUser user = userRepository.findByTenantIdAndUsername(tenant.getId(), request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
-        // Verifica che sia abilitato
+        // Verify user is enabled
         if (!user.getEnabled()) {
             throw new UnauthorizedException("User is disabled");
         }
 
-        // Verifica password con BCrypt
+        // Verify password with BCrypt
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid credentials");
         }
 
-        // Genera JWT
+        // Generate JWT with tenant context
         String token = jwtService.generateToken(
                 user.getId(),
                 user.getTenant().getId(),
@@ -42,6 +49,6 @@ public class AuthService {
                 user.getUsername()
         );
 
-        return new LoginResponse(token, expirationMs / 1000); // Ritorna secondi
+        return new LoginResponse(token, expirationMs / 1000); // Return seconds
     }
 }

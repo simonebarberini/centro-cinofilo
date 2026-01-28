@@ -21,6 +21,7 @@ class TenantRepositoryIT extends AbstractPostgresIT {
         Tenant tenant = Tenant.builder()
                 .name("Test Centro")
                 .type("PENSIONE")
+                .slug("test-centro")
                 .capacityBoxes(15)
                 .build();
 
@@ -32,6 +33,7 @@ class TenantRepositoryIT extends AbstractPostgresIT {
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getName()).isEqualTo("Test Centro");
         assertThat(saved.getType()).isEqualTo("PENSIONE");
+        assertThat(saved.getSlug()).isEqualTo("test-centro");
         assertThat(saved.getCapacityBoxes()).isEqualTo(15);
         assertThat(saved.getCreatedAt()).isNotNull();
     }
@@ -42,6 +44,7 @@ class TenantRepositoryIT extends AbstractPostgresIT {
         Tenant tenant = Tenant.builder()
                 .name("Unique Centro")
                 .type("ADDESTRAMENTO")
+                .slug("unique-centro")
                 .capacityBoxes(20)
                 .build();
         tenantRepository.save(tenant);
@@ -55,11 +58,32 @@ class TenantRepositoryIT extends AbstractPostgresIT {
     }
 
     @Test
+    void shouldFindTenantBySlug() {
+        // Given
+        Tenant tenant = Tenant.builder()
+                .name("Slug Centro")
+                .type("PENSIONE")
+                .slug("slug-centro")
+                .capacityBoxes(10)
+                .build();
+        tenantRepository.save(tenant);
+
+        // When
+        var found = tenantRepository.findBySlug("slug-centro");
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getSlug()).isEqualTo("slug-centro");
+        assertThat(found.get().getName()).isEqualTo("Slug Centro");
+    }
+
+    @Test
     void shouldCheckIfTenantExistsByName() {
         // Given
         Tenant tenant = Tenant.builder()
                 .name("Existing Centro")
                 .type("PENSIONE")
+                .slug("existing-centro")
                 .capacityBoxes(10)
                 .build();
         tenantRepository.save(tenant);

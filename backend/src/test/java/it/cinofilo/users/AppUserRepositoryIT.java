@@ -30,9 +30,11 @@ class AppUserRepositoryIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() {
+        String uniqueSlug = "test-tenant-" + UUID.randomUUID();
         testTenant = Tenant.builder()
                 .name("Test Tenant")
                 .type("PENSIONE")
+                .slug(uniqueSlug)
                 .capacityBoxes(10)
                 .build();
         testTenant = tenantRepository.save(testTenant);
@@ -92,9 +94,11 @@ class AppUserRepositoryIT extends AbstractPostgresIT {
     @Test
     void shouldAllowSameUsernameInDifferentTenants() {
         // Given - Create a second tenant
+        String uniqueSlug2 = "another-tenant-" + UUID.randomUUID();
         Tenant tenant2 = Tenant.builder()
                 .name("Another Tenant")
                 .type("ADDESTRAMENTO")
+                .slug(uniqueSlug2)
                 .capacityBoxes(5)
                 .build();
         tenant2 = tenantRepository.save(tenant2);

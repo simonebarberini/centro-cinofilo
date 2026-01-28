@@ -37,6 +37,7 @@ public class DevDataSeeder {
             Tenant demoTenant = Tenant.builder()
                     .name("Demo Centro")
                     .type("PENSIONE")
+                    .slug("demo-centro")
                     .capacityBoxes(10)
                     .build();
             

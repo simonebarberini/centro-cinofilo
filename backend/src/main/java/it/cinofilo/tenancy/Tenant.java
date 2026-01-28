@@ -26,6 +26,9 @@ public class Tenant {
     @Column(nullable = false)
     private String type;
 
+    @Column(nullable = false, unique = true)
+    private String slug;
+
     @Column(name = "capacity_boxes", nullable = false)
     @Builder.Default
     private Integer capacityBoxes = 0;

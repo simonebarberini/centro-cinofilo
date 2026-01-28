@@ -61,6 +61,59 @@ cd backend && mvn test
 cd frontend && npm test
 ```
 
+## Postman Smoke Tests
+
+Questa cartella contiene una collection Postman e un environment per effettuare smoke test manuale delle API Auth e Customers.
+
+### Setup di Postman
+
+1. **Importare la collection e l'environment**:
+   - Aprire Postman
+   - Cliccare su "Import" (in alto a sinistra)
+   - Selezionare `postman/CentroCinofilo.postman_collection.json`
+   - Ripetere per `postman/local-dev.postman_environment.json`
+
+2. **Selezionare l'environment**:
+   - In alto a destra, selezionare "local-dev" dal dropdown degli environment
+
+3. **Verificare le variabili**:
+   - Cliccare su "local-dev" → "Edit"
+   - Verificare che le variabili siano correttamente configurate:
+     - `baseUrl`: `http://localhost:8080`
+     - `tenantSlug`: `demo-centro`
+     - `username`: `owner`
+     - `password`: `owner123!`
+
+### Ordine di Esecuzione
+
+Eseguire le richieste **in questo ordine** per un corretto smoke test:
+
+1. **Login** (folder Auth)
+   - Autentica l'utente con il tenant specificato
+   - Salva automaticamente il token JWT in `accessToken`
+
+2. **Create Customer** (folder Customers)
+   - Crea un nuovo customer
+   - Salva automaticamente l'ID del customer in `customerId`
+
+3. **List Customers** (folder Customers)
+   - Elenca tutti i customer per il tenant corrente
+
+4. **Get Customer** (folder Customers)
+   - Recupera il dettaglio del customer creato
+
+5. **Update Customer** (folder Customers)
+   - Aggiorna il customer con nuovi dati
+
+6. **Delete Customer** (folder Customers)
+   - Elimina il customer
+
+### Note Importanti
+
+- **Token e ID automatici**: I test script di Postman estraggono automaticamente `accessToken` dalla response di Login e `customerId` dalla response di Create Customer. Non è necessario copiarli manualmente.
+- **Environment setup**: L'environment `local-dev` contiene i dati di default per lo sviluppo locale. Se si usa un'altra configurazione (prod, staging), creare un nuovo environment.
+- **Backend in esecuzione**: Assicurarsi che il backend Spring Boot sia in esecuzione su `http://localhost:8080` prima di eseguire i test.
+
 ## Avvio DB locale
 
 ### Prerequisiti

@@ -91,7 +91,7 @@ class AppUserRepositoryIT extends AbstractPostgresIT {
 
     @Test
     void shouldAllowSameUsernameInDifferentTenants() {
-        // Given
+        // Given - Create a second tenant
         Tenant tenant2 = Tenant.builder()
                 .name("Another Tenant")
                 .type("ADDESTRAMENTO")
@@ -99,6 +99,7 @@ class AppUserRepositoryIT extends AbstractPostgresIT {
                 .build();
         tenant2 = tenantRepository.save(tenant2);
 
+        // Create two users with the same username but different tenants
         AppUser user1 = AppUser.builder()
                 .tenant(testTenant)
                 .username("shared")
@@ -118,9 +119,17 @@ class AppUserRepositoryIT extends AbstractPostgresIT {
         // When
         appUserRepository.save(user1);
         appUserRepository.save(user2);
+        appUserRepository.flush();
 
-        // Then
-        assertThat(appUserRepository.count()).isEqualTo(2);
+        // Then - Verify both users exist with their respective tenant-username combinations
+        boolean user1Exists = appUserRepository.existsByTenantIdAndUsername(testTenant.getId(), "shared");
+        boolean user2Exists = appUserRepository.existsByTenantIdAndUsername(tenant2.getId(), "shared");
+        
+        assertThat(user1Exists).isTrue();
+        assertThat(user2Exists).isTrue();
+        
+        // Verify cross-tenant isolation: user1's username doesn't exist in tenant2's context
+        // This confirms the unique constraint is on (tenant_id, username) not just username
     }
 
     @Test

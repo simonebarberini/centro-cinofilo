@@ -4,13 +4,7 @@
 
 ```bash
 cd backend
-mvn spring-boot:run -Dspring-boot.run.arguments=--spring.profiles.active=dev
-```
-
-Oppure:
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=dev"
 ```
 
 **Security in DEV**: Tutte le rotte sono accessibili senza autenticazione (`permitAll`)

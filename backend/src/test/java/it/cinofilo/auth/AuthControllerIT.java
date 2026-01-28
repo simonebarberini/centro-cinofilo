@@ -212,4 +212,17 @@ class AuthControllerIT extends AbstractPostgresIT {
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void shouldAllowAnonymousAccessToLoginEndpoint() throws Exception {
+        // Given - Valid login request WITHOUT Authorization header
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
+
+        // When/Then - Should NOT return 401 for missing token, should process login
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+    }
 }

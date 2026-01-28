@@ -13,6 +13,17 @@ Oppure:
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
+**Security in DEV**: Tutte le rotte sono accessibili senza autenticazione (`permitAll`)
+
+## Avviare il backend senza profilo (default/prod)
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+**Security in PROD**: Solo `/api/health` e `/actuator/health` sono accessibili senza autenticazione. Tutte le altre rotte richiedono autenticazione (JWT - da implementare).
+
 ## Cosa succede all'avvio (profilo dev)
 
 1. Flyway esegue le migration V1 e V2

@@ -2,6 +2,8 @@ package it.cinofilo.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import it.cinofilo.security.JwtAuthenticationConverter;
+import it.cinofilo.security.JwtService;
+import it.cinofilo.security.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +17,8 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -26,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 public class SecurityConfig {
 
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
+    private final JwtService jwtService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -46,7 +51,8 @@ public class SecurityConfig {
                     .decoder(jwtDecoder())
                     .jwtAuthenticationConverter(jwtAuthenticationConverter)
                 )
-            );
+            )
+            .addFilterAfter(new TenantContextFilter(jwtService), BearerTokenAuthenticationFilter.class);
         
         return http.build();
     }

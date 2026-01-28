@@ -24,20 +24,17 @@ centro-cinofilo/
 
 ### Setup iniziale
 ```bash
-# Installare dipendenze
-npm install
-
-# Installare dipendenze backend
-cd backend && npm install
-
 # Installare dipendenze frontend
 cd frontend && npm install
+
+# Il backend (Maven) scaricherà le dipendenze automaticamente al primo build
+cd backend && mvn clean install
 ```
 
 ### Sviluppo
 ```bash
 # Avviare backend
-cd backend && npm run dev
+cd backend && mvn spring-boot:run
 
 # Avviare frontend
 cd frontend && npm run dev
@@ -49,7 +46,7 @@ docker-compose -f infra/docker/docker-compose.yml up
 ### Build
 ```bash
 # Build backend
-cd backend && npm run build
+cd backend && mvn clean package
 
 # Build frontend
 cd frontend && npm run build
@@ -58,7 +55,7 @@ cd frontend && npm run build
 ### Testing
 ```bash
 # Test backend
-cd backend && npm test
+cd backend && mvn test
 
 # Test frontend
 cd frontend && npm test
@@ -433,8 +430,13 @@ npm run dev
 Il progetto è progettato per supportare multi-tenancy nel futuro. Le seguenti linee guida devono essere seguite:
 
 - **Ogni entità che sarà tenant-aware deve avere un campo `tenant_id`**: (UUID o Long)
-- **Nel backend**: Aggiungere sempre il filtro `tenant_id` nelle query JPA
-- **Nel frontend**: Passare sempre `tenant_id` nelle richieste API (header o parametro)
+- **Nel backend**: 
+  - Il `tenant_id` viene estratto automaticamente dal token JWT dell'utente autenticato
+  - Tutte le query JPA devono essere filtrate automaticamente per `tenant_id` tramite JPA filters o aspect
+  - Non fidarsi mai del `tenant_id` passato dal client - usare sempre quello del JWT
+- **Nel frontend**: 
+  - NON inviare `tenant_id` nelle richieste - il backend lo deduce dal JWT
+  - Il frontend invia solo il token JWT nell'header Authorization
 - **Nelle migrazioni SQL**: Includere colonna `tenant_id` in tutte le future tabelle di business logic
 
 Esempio futura entità:
@@ -447,7 +449,7 @@ public class User {
     private UUID id;
     
     @Column(nullable = false)
-    private UUID tenantId;  // Multi-tenancy support
+    private UUID tenantId;  // Multi-tenancy support - popolato dal backend via JWT
     
     private String name;
     // ...

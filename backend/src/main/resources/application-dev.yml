@@ -20,5 +20,11 @@ logging:
     it.cinofilo: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# JWT Configuration for DEV
+jwt:
+  secret: dev-secret-key-minimum-256-bits-for-hs256-algorithm-change-in-production
+  expiration-ms: 28800000

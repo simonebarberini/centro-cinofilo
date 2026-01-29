@@ -83,6 +83,11 @@ Questa cartella contiene una collection Postman e un environment per effettuare 
      - `tenantSlug`: `demo-centro`
      - `username`: `owner`
      - `password`: `owner123!`
+     - **Variabili runtime** (devono restare vuote):
+       - `accessToken`: vuoto (riempito automaticamente da Login)
+       - `customerId`: vuoto (riempito automaticamente da Create Customer)
+       - `dogId`: vuoto (riempito automaticamente da Create Dog)
+       - `bookingId`: vuoto (riempito automaticamente da Create Booking)
 
 ### Ordine di Esecuzione
 
@@ -108,11 +113,35 @@ Eseguire le richieste **in questo ordine** per un corretto smoke test:
 6. **Delete Customer** (folder Customers)
    - Elimina il customer
 
+### Versioning & Import
+
+**Importante**: La cartella `/postman` nel repository è la **fonte di verità**. Per mantenere la sincronizzazione con il team:
+
+**Workflow locale:**
+1. `git pull` per ottenere i file più recenti dal repo
+2. In Postman, scegli **Import** → seleziona file → **Replace** (non merge)
+3. I tuoi token e ID runtime rimangono in memoria Postman durante la sessione
+4. Al termine della sessione, Postman non salva i token nei file locali
+
+**Regole Git:**
+- **Non committare mai**: `accessToken`, `customerId`, `dogId`, `bookingId` con valori reali
+- Questi campi devono **restare vuoti** (`""`) nel file di repo
+- I token/ID sono solo runtime, generati dai test script al login/create
+- Le variabili di ambiente (`baseUrl`, `tenantSlug`, `username`, `password`) possono restare nel repo
+
+**Esportazione corretta:**
+Se devi esportare l'environment dopo una sessione di test:
+1. In Postman, clicca sull'environment → Download
+2. **Prima di committare**, verifica che i campi sensibili siano vuoti:
+   - `"value": ""` per accessToken, customerId, dogId, bookingId
+   - Solo `initialValue` e `value` devono essere vuoti
+
 ### Note Importanti
 
 - **Token e ID automatici**: I test script di Postman estraggono automaticamente `accessToken` dalla response di Login e `customerId` dalla response di Create Customer. Non è necessario copiarli manualmente.
 - **Environment setup**: L'environment `local-dev` contiene i dati di default per lo sviluppo locale. Se si usa un'altra configurazione (prod, staging), creare un nuovo environment.
 - **Backend in esecuzione**: Assicurarsi che il backend Spring Boot sia in esecuzione su `http://localhost:8080` prima di eseguire i test.
+- **Team sync**: Usa sempre "Import Replace" e non "Import Merge" per evitare conflitti nell'environment.
 
 ## Avvio DB locale
 

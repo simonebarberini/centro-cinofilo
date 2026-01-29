@@ -3,6 +3,7 @@ package it.cinofilo.config;
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.customer.CustomerNotFoundException;
+import it.cinofilo.dogs.DogNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCustomerNotFoundException(CustomerNotFoundException ex) {
         log.warn("Customer not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(DogNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDogNotFoundException(DogNotFoundException ex) {
+        log.warn("Dog not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
     }

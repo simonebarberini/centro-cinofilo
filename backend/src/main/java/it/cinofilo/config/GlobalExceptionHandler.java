@@ -2,6 +2,8 @@ package it.cinofilo.config;
 
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
+import it.cinofilo.bookings.BookingNotFoundException;
+import it.cinofilo.bookings.OverbookingException;
 import it.cinofilo.customer.CustomerNotFoundException;
 import it.cinofilo.dogs.DogNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,24 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
     }
 
+    @ExceptionHandler(BookingNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleBookingNotFoundException(BookingNotFoundException ex) {
+        log.warn("Booking not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(OverbookingException.class)
+    public ResponseEntity<OverbookingErrorResponse> handleOverbookingException(OverbookingException ex) {
+        log.warn("Overbooking detected: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new OverbookingErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        ex.getMessage(),
+                        ex.getOverCapacityDate()
+                ));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
@@ -68,6 +88,15 @@ public class GlobalExceptionHandler {
         public ErrorResponse(int status, String message) {
             this.status = status;
             this.message = message;
+        }
+    }
+
+    public static class OverbookingErrorResponse extends ErrorResponse {
+        public final java.time.LocalDate overCapacityDate;
+
+        public OverbookingErrorResponse(int status, String message, java.time.LocalDate overCapacityDate) {
+            super(status, message);
+            this.overCapacityDate = overCapacityDate;
         }
     }
 }

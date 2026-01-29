@@ -101,17 +101,46 @@ Eseguire le richieste **in questo ordine** per un corretto smoke test:
    - Crea un nuovo customer
    - Salva automaticamente l'ID del customer in `customerId`
 
-3. **List Customers** (folder Customers)
+3. **Create Dog** (folder Dogs)
+   - Crea un nuovo cane per il customer
+   - Salva automaticamente l'ID del cane in `dogId`
+
+4. **Create Booking** (folder Bookings)
+   - Crea una prenotazione per il cane
+   - Salva automaticamente l'ID della prenotazione in `bookingId`
+
+5. **List Bookings** (folder Bookings)
+   - Elenca tutte le prenotazioni per il tenant
+
+6. **Get Booking** (folder Bookings)
+   - Recupera il dettaglio della prenotazione creata
+
+7. **Update Booking** (folder Bookings)
+   - Aggiorna le date della prenotazione
+
+8. **Cancel Booking** (folder Bookings)
+   - Annulla la prenotazione
+
+9. **List Customers** (folder Customers)
    - Elenca tutti i customer per il tenant corrente
 
-4. **Get Customer** (folder Customers)
-   - Recupera il dettaglio del customer creato
+10. **Get Customer** (folder Customers)
+    - Recupera il dettaglio del customer
 
-5. **Update Customer** (folder Customers)
-   - Aggiorna il customer con nuovi dati
+11. **Update Customer** (folder Customers)
+    - Aggiorna il customer con nuovi dati
 
-6. **Delete Customer** (folder Customers)
-   - Elimina il customer
+12. **Get Dog** (folder Dogs)
+    - Recupera il dettaglio del cane
+
+13. **Update Dog** (folder Dogs)
+    - Aggiorna il cane con nuovi dati
+
+14. **Delete Dog** (folder Dogs)
+    - Elimina il cane
+
+15. **Delete Customer** (folder Customers)
+    - Elimina il customer
 
 ### Versioning & Import
 

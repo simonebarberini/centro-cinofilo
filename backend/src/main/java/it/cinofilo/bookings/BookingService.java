@@ -1,5 +1,6 @@
 package it.cinofilo.bookings;
 
+import it.cinofilo.bookings.availability.BookingAvailabilityService;
 import it.cinofilo.bookings.dto.BookingResponse;
 import it.cinofilo.bookings.dto.CreateBookingRequest;
 import it.cinofilo.bookings.dto.UpdateBookingRequest;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -49,8 +51,9 @@ public class BookingService {
         Dog dog = dogRepository.findByIdAndTenantId(request.getDogId(), tenantId)
                 .orElseThrow(() -> new DogNotFoundException("Dog not found with ID: " + request.getDogId()));
 
-        // Check availability before creating
-        availabilityService.checkAvailability(tenantId, request.getStartDate(), request.getEndDate(), null);
+        // Validate date range and check availability before creating
+        validateDateRange(request.getStartDate(), request.getEndDate());
+        availabilityService.checkCanBookOrThrow(tenantId, request.getStartDate(), request.getEndDate(), null);
 
         // Create booking
         Booking booking = Booking.builder()
@@ -111,21 +114,26 @@ public class BookingService {
         Booking booking = bookingRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BookingNotFoundException("Booking not found with ID: " + id));
 
-        boolean datesChanged = false;
+        LocalDate newStartDate = request.getStartDate() != null ? request.getStartDate() : booking.getStartDate();
+        LocalDate newEndDate = request.getEndDate() != null ? request.getEndDate() : booking.getEndDate();
+        BookingStatus newStatus = request.getStatus() != null ? request.getStatus() : booking.getStatus();
 
-        if (request.getStartDate() != null && !request.getStartDate().equals(booking.getStartDate())) {
+        if (request.getStartDate() != null) {
             booking.setStartDate(request.getStartDate());
-            datesChanged = true;
         }
 
-        if (request.getEndDate() != null && !request.getEndDate().equals(booking.getEndDate())) {
+        if (request.getEndDate() != null) {
             booking.setEndDate(request.getEndDate());
-            datesChanged = true;
         }
 
-        // Check availability if dates changed, excluding this booking from the check
-        if (datesChanged) {
-            availabilityService.checkAvailability(tenantId, booking.getStartDate(), booking.getEndDate(), booking.getId());
+        // Validate date range if dates are provided
+        if (request.getStartDate() != null || request.getEndDate() != null) {
+            validateDateRange(newStartDate, newEndDate);
+        }
+
+        // Check availability when resulting status is CONFIRMED
+        if (newStatus == BookingStatus.CONFIRMED) {
+            availabilityService.checkCanBookOrThrow(tenantId, newStartDate, newEndDate, booking.getId());
         }
 
         if (request.getNotes() != null) {
@@ -172,5 +180,11 @@ public class BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+
+    private void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null || !endDate.isAfter(startDate)) {
+            throw new InvalidDateRangeException("End date must be after start date");
+        }
     }
 }

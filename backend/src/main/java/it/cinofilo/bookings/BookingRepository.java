@@ -1,6 +1,8 @@
 package it.cinofilo.bookings;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -24,21 +26,34 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      */
     Optional<Booking> findByIdAndTenantId(UUID id, UUID tenantId);
 
-    /**
-     * Find bookings that overlap with a given date range.
-     * Overlap condition: booking.startDate < requestedEndDate AND booking.endDate > requestedStartDate
-     * 
-     * Used for availability checks.
-     * 
-     * @param tenantId the tenant ID
-     * @param endDateExclusive the requested end date (exclusive)
-     * @param startDateInclusive the requested start date (inclusive)
-     * @return list of overlapping bookings
-     */
-    List<Booking> findAllByTenantIdAndStartDateLessThanAndEndDateGreaterThan(
-            UUID tenantId, 
-            LocalDate endDateExclusive, 
-            LocalDate startDateInclusive);
+        /**
+         * Find confirmed bookings that overlap with a given date range.
+         * Overlap condition: booking.startDate < requestedEndDate AND booking.endDate > requestedStartDate
+         */
+        @Query("SELECT b FROM Booking b "
+            + "WHERE b.tenantId = :tenantId "
+            + "AND b.status = it.cinofilo.bookings.BookingStatus.CONFIRMED "
+            + "AND b.startDate < :endDateExclusive "
+            + "AND b.endDate > :startDateInclusive")
+        List<Booking> findConfirmedOverlapping(
+            @Param("tenantId") UUID tenantId,
+            @Param("startDateInclusive") LocalDate startDateInclusive,
+            @Param("endDateExclusive") LocalDate endDateExclusive);
+
+        /**
+         * Find confirmed bookings that overlap with a given date range, excluding a booking ID.
+         */
+        @Query("SELECT b FROM Booking b "
+            + "WHERE b.tenantId = :tenantId "
+            + "AND b.status = it.cinofilo.bookings.BookingStatus.CONFIRMED "
+            + "AND b.startDate < :endDateExclusive "
+            + "AND b.endDate > :startDateInclusive "
+            + "AND b.id <> :excludeId")
+        List<Booking> findConfirmedOverlappingExcludingId(
+            @Param("tenantId") UUID tenantId,
+            @Param("startDateInclusive") LocalDate startDateInclusive,
+            @Param("endDateExclusive") LocalDate endDateExclusive,
+            @Param("excludeId") UUID excludeId);
 
     /**
      * Find all bookings for a specific dog within a tenant.

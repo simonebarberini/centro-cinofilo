@@ -3,6 +3,7 @@ package it.cinofilo.config;
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.bookings.BookingNotFoundException;
+import it.cinofilo.bookings.InvalidDateRangeException;
 import it.cinofilo.bookings.OverbookingException;
 import it.cinofilo.customer.CustomerNotFoundException;
 import it.cinofilo.dogs.DogNotFoundException;
@@ -59,9 +60,18 @@ public class GlobalExceptionHandler {
                 .body(new OverbookingErrorResponse(
                         HttpStatus.CONFLICT.value(),
                         ex.getMessage(),
-                        ex.getOverCapacityDate()
+                ex.getDate(),
+                ex.getCapacity(),
+                ex.getBooked()
                 ));
     }
+
+        @ExceptionHandler(InvalidDateRangeException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidDateRangeException(InvalidDateRangeException ex) {
+        log.warn("Invalid date range: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+        }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
@@ -92,11 +102,15 @@ public class GlobalExceptionHandler {
     }
 
     public static class OverbookingErrorResponse extends ErrorResponse {
-        public final java.time.LocalDate overCapacityDate;
+        public final java.time.LocalDate date;
+        public final int capacity;
+        public final int booked;
 
-        public OverbookingErrorResponse(int status, String message, java.time.LocalDate overCapacityDate) {
+        public OverbookingErrorResponse(int status, String message, java.time.LocalDate date, int capacity, int booked) {
             super(status, message);
-            this.overCapacityDate = overCapacityDate;
+            this.date = date;
+            this.capacity = capacity;
+            this.booked = booked;
         }
     }
 }

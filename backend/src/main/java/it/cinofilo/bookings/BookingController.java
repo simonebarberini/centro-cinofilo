@@ -1,14 +1,19 @@
 package it.cinofilo.bookings;
 
+import it.cinofilo.bookings.availability.BookingAvailabilityService;
+import it.cinofilo.bookings.availability.DailyAvailability;
 import it.cinofilo.bookings.dto.BookingResponse;
 import it.cinofilo.bookings.dto.CreateBookingRequest;
 import it.cinofilo.bookings.dto.UpdateBookingRequest;
+import it.cinofilo.tenancy.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +24,7 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingAvailabilityService availabilityService;
 
     /**
      * Create a new booking.
@@ -74,5 +80,20 @@ public class BookingController {
     @PostMapping("/{id}/cancel")
     public BookingResponse cancel(@PathVariable UUID id) {
         return bookingService.cancel(id);
+    }
+
+    /**
+     * Get daily availability for the current tenant.
+     *
+     * @param start start date (inclusive)
+     * @param end end date (exclusive)
+     * @return daily availability list
+     */
+    @GetMapping("/availability")
+    public List<DailyAvailability> getAvailability(
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        UUID tenantId = TenantContext.getTenantId();
+        return availabilityService.getDailyAvailability(tenantId, start, end);
     }
 }

@@ -623,6 +623,63 @@
           }
         },
         {
+          "name": "Availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array with availability fields', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    if (jsonData.length > 0) {",
+                  "        pm.expect(jsonData[0]).to.have.property('date');",
+                  "        pm.expect(jsonData[0]).to.have.property('capacity');",
+                  "        pm.expect(jsonData[0]).to.have.property('booked');",
+                  "        pm.expect(jsonData[0]).to.have.property('available');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/availability?start=2026-02-01&end=2026-02-03",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "2026-02-01"
+                },
+                {
+                  "key": "end",
+                  "value": "2026-02-03"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Get Booking",
           "event": [
             {

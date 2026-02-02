@@ -263,7 +263,9 @@ class BookingControllerIT extends AbstractPostgresIT {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.overCapacityDate").exists());
+                .andExpect(jsonPath("$.date").exists())
+                .andExpect(jsonPath("$.capacity").value(2))
+                .andExpect(jsonPath("$.booked").value(2));
 
         // Verify only 2 bookings exist
         assertThat(bookingRepository.findAllByTenantId(tenantAId)).hasSize(2);
@@ -408,6 +410,120 @@ class BookingControllerIT extends AbstractPostgresIT {
     }
 
     @Test
+    void shouldReturnDailyAvailability() throws Exception {
+        Tenant tenantB = tenantRepository.findById(tenantBId).orElseThrow();
+        Customer customerB = createCustomerForTenant(tenantB, "Paolo", "Neri", "paolo.av@example.com");
+        Dog dogB = createDogForTenant(customerB, tenantBId, "Max", "Beagle");
+
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusDays(2);
+
+        Booking booking = Booking.builder()
+                .tenantId(tenantBId)
+                .customer(customerB)
+                .dog(dogB)
+                .startDate(start)
+                .endDate(end)
+                .status(BookingStatus.CONFIRMED)
+                .build();
+        bookingRepository.save(booking);
+
+        mockMvc.perform(get("/bookings/availability")
+                        .header("Authorization", "Bearer " + tenantBToken)
+                        .param("start", start.toString())
+                        .param("end", end.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].date").value(start.toString()))
+                .andExpect(jsonPath("$[0].capacity").value(1))
+                .andExpect(jsonPath("$[0].booked").value(1))
+                .andExpect(jsonPath("$[0].available").value(0));
+    }
+
+    @Test
+    void shouldRejectCreateWhenOverCapacity() throws Exception {
+        Tenant tenantB = tenantRepository.findById(tenantBId).orElseThrow();
+        Customer customerB = createCustomerForTenant(tenantB, "Paolo", "Neri", "paolo.cap@example.com");
+        Dog dogB = createDogForTenant(customerB, tenantBId, "Max", "Beagle");
+
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusDays(2);
+
+        Booking booking = Booking.builder()
+                .tenantId(tenantBId)
+                .customer(customerB)
+                .dog(dogB)
+                .startDate(start)
+                .endDate(end)
+                .status(BookingStatus.CONFIRMED)
+                .build();
+        bookingRepository.save(booking);
+
+        CreateBookingRequest request = CreateBookingRequest.builder()
+                .customerId(customerB.getId())
+                .dogId(dogB.getId())
+                .startDate(start)
+                .endDate(end)
+                .notes("Should fail - capacity 1")
+                .build();
+
+        mockMvc.perform(post("/bookings")
+                        .header("Authorization", "Bearer " + tenantBToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.date").value(start.toString()))
+                .andExpect(jsonPath("$.capacity").value(1))
+                .andExpect(jsonPath("$.booked").value(1));
+    }
+
+    @Test
+    void shouldAllowCreateWhenCancelledBookingExists() throws Exception {
+        Tenant tenantB = tenantRepository.findById(tenantBId).orElseThrow();
+        Customer customerB = createCustomerForTenant(tenantB, "Paolo", "Neri", "paolo.cancel@example.com");
+        Dog dogB = createDogForTenant(customerB, tenantBId, "Max", "Beagle");
+
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusDays(2);
+
+        Booking cancelled = Booking.builder()
+                .tenantId(tenantBId)
+                .customer(customerB)
+                .dog(dogB)
+                .startDate(start)
+                .endDate(end)
+                .status(BookingStatus.CANCELLED)
+                .build();
+        bookingRepository.save(cancelled);
+
+        CreateBookingRequest request = CreateBookingRequest.builder()
+                .customerId(customerB.getId())
+                .dogId(dogB.getId())
+                .startDate(start)
+                .endDate(end)
+                .notes("Should succeed")
+                .build();
+
+        mockMvc.perform(post("/bookings")
+                        .header("Authorization", "Bearer " + tenantBToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void shouldRequireAuthForAvailabilityEndpoint() throws Exception {
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusDays(2);
+
+        mockMvc.perform(get("/bookings/availability")
+                        .param("start", start.toString())
+                        .param("end", end.toString()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void shouldCancelBooking() throws Exception {
         // Create booking
         Booking booking = Booking.builder()
@@ -460,4 +576,24 @@ class BookingControllerIT extends AbstractPostgresIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
     }
+
+        private Customer createCustomerForTenant(Tenant tenant, String firstName, String lastName, String email) {
+                Customer customer = new Customer();
+                customer.setTenant(tenant);
+                customer.setFirstName(firstName);
+                customer.setLastName(lastName);
+                customer.setEmail(email);
+                customer.setPhone("1111111111");
+                return customerRepository.save(customer);
+        }
+
+        private Dog createDogForTenant(Customer customer, UUID tenantId, String name, String breed) {
+                Dog dog = new Dog();
+                dog.setTenantId(tenantId);
+                dog.setCustomer(customer);
+                dog.setName(name);
+                dog.setBreed(breed);
+                dog.setBirthDate(LocalDate.of(2018, 7, 20));
+                return dogRepository.save(dog);
+        }
 }

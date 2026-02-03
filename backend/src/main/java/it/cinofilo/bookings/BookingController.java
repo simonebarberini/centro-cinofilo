@@ -2,6 +2,8 @@ package it.cinofilo.bookings;
 
 import it.cinofilo.bookings.availability.BookingAvailabilityService;
 import it.cinofilo.bookings.availability.DailyAvailability;
+import it.cinofilo.bookings.calendar.BookingCalendarService;
+import it.cinofilo.bookings.calendar.dto.CalendarResponse;
 import it.cinofilo.bookings.dto.BookingResponse;
 import it.cinofilo.bookings.dto.CreateBookingRequest;
 import it.cinofilo.bookings.dto.UpdateBookingRequest;
@@ -25,6 +27,7 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final BookingAvailabilityService availabilityService;
+    private final BookingCalendarService calendarService;
 
     /**
      * Create a new booking.
@@ -95,5 +98,19 @@ public class BookingController {
             @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         UUID tenantId = TenantContext.getTenantId();
         return availabilityService.getDailyAvailability(tenantId, start, end);
+    }
+
+    /**
+     * Get calendar view combining availability and bookings for a date range.
+     *
+     * @param start start date (inclusive)
+     * @param end end date (exclusive)
+     * @return calendar response with daily availability and all bookings
+     */
+    @GetMapping("/calendar")
+    public CalendarResponse getCalendar(
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        return calendarService.getCalendar(start, end);
     }
 }

@@ -44,7 +44,7 @@
               "raw": "{\n  \"tenantSlug\": \"{{tenantSlug}}\",\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/auth/login",
+              "raw": "{{baseUrl}}/auth/login",
               "host": [
                 "{{baseUrl}}"
               ],

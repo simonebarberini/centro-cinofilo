@@ -4,28 +4,12 @@ import { Component } from '@angular/core';
   selector: 'app-calendar',
   standalone: true,
   template: `
-    <div class="placeholder">
-      <h2>📅 Calendar</h2>
-      <p>Calendar view – coming soon</p>
+    <div class="card bg-base-100 shadow-md">
+      <div class="card-body items-center text-center">
+        <h2 class="card-title text-2xl">📅 Calendario</h2>
+        <p class="text-base-content/60">Calendar view – coming soon</p>
+      </div>
     </div>
-  `,
-  styles: [
-    `
-      .placeholder {
-        text-align: center;
-        padding: 60px 20px;
-        color: #666;
-
-        h2 {
-          font-size: 28px;
-          margin-bottom: 8px;
-        }
-
-        p {
-          font-size: 16px;
-        }
-      }
-    `
-  ]
+  `
 })
 export class CalendarComponent {}

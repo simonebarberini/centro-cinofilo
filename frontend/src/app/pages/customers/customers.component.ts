@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { CustomersApiService } from '../../core/api/customers-api.service';
 import { Customer } from '../../core/models/customer.model';
 import { CustomerFormComponent } from './customer-form.component';
@@ -23,7 +24,7 @@ export class CustomersComponent implements OnInit {
 
   @ViewChild('deleteDialog') deleteDialog!: ElementRef<HTMLDialogElement>;
 
-  constructor(private api: CustomersApiService) {}
+  constructor(private api: CustomersApiService, private router: Router) {}
 
   ngOnInit(): void {
     this.loadCustomers();
@@ -84,6 +85,12 @@ export class CustomersComponent implements OnInit {
         this.deleting = false;
         console.error('Error deleting customer', err);
       },
+    });
+  }
+
+  viewDogs(customer: Customer): void {
+    this.router.navigate(['/customers', customer.id, 'dogs'], {
+      queryParams: { name: `${customer.firstName} ${customer.lastName}` },
     });
   }
 }

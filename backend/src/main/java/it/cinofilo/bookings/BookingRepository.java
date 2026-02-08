@@ -64,4 +64,20 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Find all bookings for a specific customer within a tenant.
      */
     List<Booking> findAllByTenantIdAndCustomerId(UUID tenantId, UUID customerId);
+
+    /**
+     * Find all bookings (any status) in a date range for a tenant with customer and dog data.
+     * Includes join fetch to avoid N+1 queries.
+     */
+    @Query("SELECT DISTINCT b FROM Booking b "
+        + "LEFT JOIN FETCH b.customer "
+        + "LEFT JOIN FETCH b.dog "
+        + "WHERE b.tenantId = :tenantId "
+        + "AND b.startDate < :endDateExclusive "
+        + "AND b.endDate > :startDateInclusive "
+        + "ORDER BY b.startDate ASC")
+    List<Booking> findAllInRangeWithDetails(
+        @Param("tenantId") UUID tenantId,
+        @Param("startDateInclusive") LocalDate startDateInclusive,
+        @Param("endDateExclusive") LocalDate endDateExclusive);
 }

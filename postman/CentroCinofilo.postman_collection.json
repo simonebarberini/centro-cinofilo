@@ -226,42 +226,6 @@
               ]
             }
           }
-        },
-        {
-          "name": "Delete Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 204 or 200', function () {",
-                  "    pm.expect([200, 204]).to.include(pm.response.code);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "customers",
-                "{{customerId}}"
-              ]
-            }
-          }
         }
       ]
     },
@@ -489,42 +453,6 @@
               ]
             }
           }
-        },
-        {
-          "name": "Delete Dog",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 204 or 200', function () {",
-                  "    pm.expect([200, 204]).to.include(pm.response.code);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/dogs/{{dogId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "dogs",
-                "{{dogId}}"
-              ]
-            }
-          }
         }
       ]
     },
@@ -680,6 +608,63 @@
           }
         },
         {
+          "name": "Calendar Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains calendar fields', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('start');",
+                  "    pm.expect(jsonData).to.have.property('end');",
+                  "    pm.expect(jsonData).to.have.property('capacity');",
+                  "    pm.expect(jsonData).to.have.property('days');",
+                  "    pm.expect(jsonData).to.have.property('bookings');",
+                  "    pm.expect(jsonData.days).to.be.an('array');",
+                  "    pm.expect(jsonData.bookings).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/calendar?start=2026-02-01&end=2026-02-10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings",
+                "calendar"
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "2026-02-01"
+                },
+                {
+                  "key": "end",
+                  "value": "2026-02-10"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Get Booking",
           "event": [
             {
@@ -808,6 +793,83 @@
                 "bookings",
                 "{{bookingId}}",
                 "cancel"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Dog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dogs/{{dogId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dogs",
+                "{{dogId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "{{customerId}}"
               ]
             }
           }

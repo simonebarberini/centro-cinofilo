@@ -13,6 +13,7 @@ export const routes: Routes = [
       { path: 'customers', loadComponent: () => import('./pages/customers/customers.component').then(m => m.CustomersComponent) },
       { path: 'customers/:customerId/dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
       { path: 'dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
+      { path: 'bookings', loadComponent: () => import('./pages/bookings/bookings.component').then(m => m.BookingsComponent) },
       { path: '', redirectTo: 'calendar', pathMatch: 'full' }
     ]
   },

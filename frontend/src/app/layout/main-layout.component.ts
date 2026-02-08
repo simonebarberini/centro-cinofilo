@@ -16,7 +16,8 @@ export class MainLayoutComponent {
     { path: '/calendar', label: 'Calendario', icon: '📅' },
     { path: '/customers', label: 'Clienti', icon: '👥' },
     { path: '/dogs', label: 'Cani', icon: '🐾' },
-    { path: '/bookings', label: 'Prenotazioni', icon: '📋' }
+    { path: '/bookings', label: 'Prenotazioni', icon: '📋' },
+    { path: '/settings', label: 'Impostazioni', icon: '⚙️' }
   ];
 
   constructor(

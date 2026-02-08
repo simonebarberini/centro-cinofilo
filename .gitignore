@@ -52,6 +52,9 @@ lerna-debug.log*
 dist/
 build/
 
+# Angular
+.angular/
+
 # IntelliJ IDE
 .idea/
 .idea_modules/

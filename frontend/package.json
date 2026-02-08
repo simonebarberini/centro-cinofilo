@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Centro Cinofilo Frontend",
   "scripts": {
-    "start": "ng serve",
-    "dev": "ng serve --open",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "dev": "ng serve --open --proxy-config proxy.conf.json",
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "test": "ng test",

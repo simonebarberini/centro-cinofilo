@@ -1,0 +1,49 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <h2>Centro Cinofilo</h2>
+    <p class="subtitle">Accedi al tuo account</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="form-field">
+        <label for="tenantSlug">Centro</label>
+        <input
+          id="tenantSlug"
+          type="text"
+          formControlName="tenantSlug"
+          placeholder="slug del centro"
+          autocomplete="organization"
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          placeholder="il tuo username"
+          autocomplete="username"
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="la tua password"
+          autocomplete="current-password"
+        />
+      </div>
+
+      @if (errorMessage) {
+        <div class="error-message">{{ errorMessage }}</div>
+      }
+
+      <button type="submit" [disabled]="form.invalid || loading">
+        {{ loading ? 'Accesso in corso...' : 'Accedi' }}
+      </button>
+    </form>
+  </div>
+</div>

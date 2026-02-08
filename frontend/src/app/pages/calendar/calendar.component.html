@@ -1,18 +1,18 @@
 <div class="p-4 md:p-6">
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
     <h1 class="text-2xl font-bold">📅 Calendario</h1>
 
-    <!-- Navigazione settimana -->
+    <!-- Navigazione -->
     <div class="flex items-center gap-2">
-      <button class="btn btn-ghost btn-sm" (click)="prevWeek()" title="Settimana precedente">
+      <button class="btn btn-ghost btn-sm" (click)="prevWindow()" title="4 settimane precedenti">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
       <button class="btn btn-ghost btn-sm" (click)="goToday()">Oggi</button>
-      <span class="font-semibold text-sm min-w-[180px] text-center">{{ weekLabel }}</span>
-      <button class="btn btn-ghost btn-sm" (click)="nextWeek()" title="Settimana successiva">
+      <span class="font-semibold text-sm min-w-[200px] text-center">{{ windowLabel }}</span>
+      <button class="btn btn-ghost btn-sm" (click)="nextWindow()" title="4 settimane successive">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
@@ -34,34 +34,43 @@
     <button class="btn btn-sm btn-ghost" (click)="loadWeek()">Riprova</button>
   </div>
 
-  <!-- Griglia settimanale -->
-  <div *ngIf="!loading && !error && days.length > 0" class="grid grid-cols-7 gap-3">
+  <!-- Header colonne -->
+  <div *ngIf="!loading && !error && days.length > 0" class="grid grid-cols-7 gap-1.5 mb-1.5">
+    <div *ngFor="let h of columnHeaders"
+         class="text-center text-xs font-bold uppercase text-base-content/40 py-1">
+      {{ h }}
+    </div>
+  </div>
+
+  <!-- Griglia 4 settimane (7 × 4) -->
+  <div *ngIf="!loading && !error && days.length > 0" class="grid grid-cols-7 gap-1.5">
     <div *ngFor="let day of days; let i = index"
-         class="card bg-base-100 border-2 shadow-sm cursor-pointer transition-all hover:shadow-md"
-         [ngClass]="[dayBorderClass(day), selectedDay?.date === day.date ? 'ring-2 ring-primary' : '']"
+         class="card bg-base-100 border cursor-pointer transition-all hover:shadow-md"
+         [ngClass]="[
+           dayBorderClass(day),
+           selectedDay?.date === day.date ? 'ring-2 ring-primary' : '',
+           isToday(day) ? 'shadow-md shadow-primary/20' : 'shadow-sm'
+         ]"
          (click)="selectDay(day)">
 
-      <div class="card-body p-3 items-center text-center">
-        <!-- Giorno della settimana -->
-        <span class="text-xs uppercase font-bold text-base-content/50">{{ dayNames[i] }}</span>
-
-        <!-- Data -->
-        <span class="text-lg font-bold" [ngClass]="{ 'text-primary': isToday(day) }">
-          {{ day.date.slice(8) }}
+      <div class="card-body p-2 items-center text-center gap-0.5">
+        <!-- Data (giorno + mese breve) -->
+        <span class="text-sm font-bold leading-tight" [ngClass]="{ 'text-primary': isToday(day) }">
+          {{ dayLabel(day) }}
         </span>
 
         <!-- Indicatore oggi -->
-        <span *ngIf="isToday(day)" class="badge badge-primary badge-xs">oggi</span>
+        <span *ngIf="isToday(day)" class="badge badge-primary badge-xs leading-none">oggi</span>
 
-        <!-- Badge disponibilità -->
-        <div class="mt-2 rounded-lg px-3 py-1.5 text-center" [ngClass]="dayColorClass(day)">
-          <div class="text-2xl font-bold leading-tight">{{ day.available }}</div>
-          <div class="text-[10px] uppercase tracking-wide opacity-80">disponibili</div>
+        <!-- Badge disponibilità compatto -->
+        <div class="mt-1 rounded-md px-2 py-1 text-center w-full" [ngClass]="dayColorClass(day)">
+          <div class="text-lg font-bold leading-tight">{{ day.available }}</div>
+          <div class="text-[9px] uppercase tracking-wide opacity-80">disp.</div>
         </div>
 
-        <!-- Dettaglio occupazione -->
-        <div class="mt-1 text-xs text-base-content/50">
-          {{ day.booked }}/{{ day.capacity }} occupati
+        <!-- Occupazione -->
+        <div class="text-[11px] text-base-content/50 leading-tight mt-0.5">
+          {{ day.booked }}/{{ day.capacity }}
         </div>
       </div>
     </div>

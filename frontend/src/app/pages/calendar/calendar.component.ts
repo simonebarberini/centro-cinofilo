@@ -17,9 +17,12 @@ export class CalendarComponent implements OnInit {
   loading = false;
   error: string | null = null;
 
-  /** Lunedì della settimana corrente */
-  weekStart!: Date;
-  weekLabel = '';
+  /** Lunedì della finestra di 4 settimane */
+  windowStart!: Date;
+  windowLabel = '';
+
+  /** Numero di giorni nella finestra */
+  private readonly WINDOW_DAYS = 28;
 
   days: DailyAvailability[] = [];
   bookings: CalendarBookingItem[] = [];
@@ -29,32 +32,43 @@ export class CalendarComponent implements OnInit {
   selectedDay: DailyAvailability | null = null;
   selectedDayBookings: CalendarBookingItem[] = [];
 
-  /** Nomi giorni */
-  readonly dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  /** Header colonne */
+  readonly columnHeaders = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
 
   constructor(private api: BookingsApiService) {}
 
   ngOnInit(): void {
-    this.weekStart = this.getMonday(new Date());
+    this.windowStart = this.getMonday(new Date());
     this.loadWeek();
   }
 
-  prevWeek(): void {
-    this.weekStart = this.addDays(this.weekStart, -7);
+  prevWindow(): void {
+    this.windowStart = this.addDays(this.windowStart, -this.WINDOW_DAYS);
     this.selectedDay = null;
     this.loadWeek();
   }
 
-  nextWeek(): void {
-    this.weekStart = this.addDays(this.weekStart, 7);
+  nextWindow(): void {
+    this.windowStart = this.addDays(this.windowStart, this.WINDOW_DAYS);
     this.selectedDay = null;
     this.loadWeek();
   }
 
   goToday(): void {
-    this.weekStart = this.getMonday(new Date());
+    this.windowStart = this.getMonday(new Date());
     this.selectedDay = null;
     this.loadWeek();
+  }
+
+  /** Nome breve del giorno (LUN, MAR, …) per una cella */
+  dayName(index: number): string {
+    return this.columnHeaders[index % 7];
+  }
+
+  /** Giorno del mese formattato (es. "8 feb") */
+  dayLabel(day: DailyAvailability): string {
+    const d = new Date(day.date + 'T00:00:00');
+    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   }
 
   selectDay(day: DailyAvailability): void {
@@ -73,9 +87,9 @@ export class CalendarComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    const start = this.toISODate(this.weekStart);
-    const end = this.toISODate(this.addDays(this.weekStart, 7));
-    this.updateWeekLabel();
+    const start = this.toISODate(this.windowStart);
+    const end = this.toISODate(this.addDays(this.windowStart, this.WINDOW_DAYS));
+    this.updateWindowLabel();
 
     this.api.calendar(start, end).subscribe({
       next: (res: CalendarResponse) => {
@@ -113,12 +127,12 @@ export class CalendarComponent implements OnInit {
 
   // --- private ---
 
-  private updateWeekLabel(): void {
-    const endDate = this.addDays(this.weekStart, 6);
+  private updateWindowLabel(): void {
+    const endDate = this.addDays(this.windowStart, this.WINDOW_DAYS - 1);
     const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-    const startStr = this.weekStart.toLocaleDateString('it-IT', opts);
+    const startStr = this.windowStart.toLocaleDateString('it-IT', opts);
     const endStr = endDate.toLocaleDateString('it-IT', { ...opts, year: 'numeric' });
-    this.weekLabel = `${startStr} — ${endStr}`;
+    this.windowLabel = `${startStr} — ${endStr}`;
   }
 
   private getMonday(d: Date): Date {

@@ -7,6 +7,7 @@ import {
   CreateBookingRequest,
   UpdateBookingRequest,
   DailyAvailability,
+  CalendarResponse,
 } from '../models/booking.model';
 
 @Injectable({ providedIn: 'root' })
@@ -38,5 +39,10 @@ export class BookingsApiService {
   availability(start: string, end: string): Observable<DailyAvailability[]> {
     const params = new HttpParams().set('start', start).set('end', end);
     return this.http.get<DailyAvailability[]>(`${this.baseUrl}/availability`, { params });
+  }
+
+  calendar(start: string, end: string): Observable<CalendarResponse> {
+    const params = new HttpParams().set('start', start).set('end', end);
+    return this.http.get<CalendarResponse>(`${this.baseUrl}/calendar`, { params });
   }
 }

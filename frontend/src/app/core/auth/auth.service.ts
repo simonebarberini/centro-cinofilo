@@ -10,7 +10,9 @@ interface LoginRequest {
 }
 
 interface LoginResponse {
-  accessToken: string;
+  token: string;
+  tokenType: string;
+  expiresIn: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -22,7 +24,7 @@ export class AuthService {
   login(tenantSlug: string, username: string, password: string): Observable<LoginResponse> {
     const body: LoginRequest = { tenantSlug, username, password };
     return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, body).pipe(
-      tap((res) => localStorage.setItem(this.TOKEN_KEY, res.accessToken))
+      tap((res) => localStorage.setItem(this.TOKEN_KEY, res.token))
     );
   }
 

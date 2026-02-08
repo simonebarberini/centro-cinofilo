@@ -10,6 +10,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'calendar', loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent) },
+      { path: 'customers', loadComponent: () => import('./pages/customers/customers.component').then(m => m.CustomersComponent) },
       { path: '', redirectTo: 'calendar', pathMatch: 'full' }
     ]
   },

@@ -1,0 +1,114 @@
+<div class="p-4 md:p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Clienti</h1>
+    <button class="btn btn-primary" (click)="openCreate()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Nuovo cliente
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex justify-center py-12">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="alert alert-error mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ error }}</span>
+    <button class="btn btn-sm btn-ghost" (click)="loadCustomers()">Riprova</button>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && !error && customers.length === 0" class="card bg-base-200 p-12 text-center">
+    <div class="text-5xl mb-4">👥</div>
+    <h2 class="text-xl font-semibold mb-2">Nessun cliente</h2>
+    <p class="text-base-content/60 mb-4">Aggiungi il primo cliente per iniziare.</p>
+    <div>
+      <button class="btn btn-primary" (click)="openCreate()">Aggiungi cliente</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div *ngIf="!loading && customers.length > 0" class="card bg-base-100 shadow-sm overflow-x-auto">
+    <table class="table table-zebra">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Cognome</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th class="hidden lg:table-cell">Note</th>
+          <th class="text-right">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of customers">
+          <td class="font-medium">{{ c.firstName }}</td>
+          <td>{{ c.lastName }}</td>
+          <td>
+            <a *ngIf="c.email" [href]="'mailto:' + c.email" class="link link-primary">{{ c.email }}</a>
+            <span *ngIf="!c.email" class="text-base-content/40">—</span>
+          </td>
+          <td>
+            <span *ngIf="c.phone">{{ c.phone }}</span>
+            <span *ngIf="!c.phone" class="text-base-content/40">—</span>
+          </td>
+          <td class="hidden lg:table-cell max-w-xs truncate">
+            <span *ngIf="c.notes">{{ c.notes }}</span>
+            <span *ngIf="!c.notes" class="text-base-content/40">—</span>
+          </td>
+          <td class="text-right">
+            <div class="flex justify-end gap-1">
+              <button class="btn btn-ghost btn-sm" (click)="openEdit(c)" title="Modifica">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn btn-ghost btn-sm text-error" (click)="confirmDelete(c)" title="Elimina">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Customer Form Modal -->
+<app-customer-form
+  *ngIf="formOpen"
+  [customer]="editingCustomer"
+  (saved)="onSaved()"
+  (cancelled)="closeForm()">
+</app-customer-form>
+
+<!-- Delete Confirmation Modal -->
+<dialog #deleteDialog class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Conferma eliminazione</h3>
+    <p class="py-4">
+      Vuoi eliminare il cliente
+      <strong>{{ deletingCustomer?.firstName }} {{ deletingCustomer?.lastName }}</strong>?
+      Questa azione è irreversibile.
+    </p>
+    <div class="modal-action">
+      <button class="btn" (click)="deleteDialog.close()">Annulla</button>
+      <button class="btn btn-error" [disabled]="deleting" (click)="executeDelete()">
+        <span *ngIf="deleting" class="loading loading-spinner loading-sm"></span>
+        Elimina
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>chiudi</button>
+  </form>
+</dialog>

@@ -1,0 +1,64 @@
+services:
+  # ── PostgreSQL ─────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinofilo-prod-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  # ── Backend (Spring Boot) ──────────────────────────
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: cinofilo-prod-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  # ── Frontend (Angular + Nginx) ─────────────────────
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: cinofilo-prod-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app-net:
+    driver: bridge

@@ -652,6 +652,61 @@ git push origin feature/mia-feature
 
 Per dubbi sulla struttura o sulle convenzioni, consultare la documentazione in `docs/` o il README.
 
+---
+
+## Deploy V1 (Docker)
+
+Stack di produzione: **PostgreSQL + Spring Boot + Angular/Nginx** orchestrati con Docker Compose.
+
+### Prerequisiti
+
+- Docker ≥ 24 e Docker Compose ≥ 2
+- Porta **80** libera (frontend) e **5432** disponibile per il container
+
+### Quick start
+
+```bash
+# 1. Crea il file di environment (una sola volta)
+cp .env.prod.example .env.prod
+#    ✏️  modifica .env.prod con password e JWT_SECRET reali
+
+# 2. Build & avvio
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 3. Verifica
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod ps
+```
+
+### URL
+
+| Servizio  | URL                         |
+|-----------|-----------------------------|
+| Frontend  | http://localhost             |
+| API       | http://localhost/api         |
+| Health    | http://localhost/api/actuator/health |
+
+### Logs
+
+```bash
+# Tutti i servizi
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f
+
+# Solo backend
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f backend
+```
+
+### Stop & pulizia
+
+```bash
+# Stop (preserva volumi)
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down
+
+# Stop + cancella volumi (⚠️  dati persi)
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down -v
+```
+
+---
+
 ## Contribuzione
 
 Per maggiori informazioni sulla struttura, vedi la documentazione in `docs/`.

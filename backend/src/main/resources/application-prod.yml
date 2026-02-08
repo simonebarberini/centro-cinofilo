@@ -1,0 +1,18 @@
+# ── Production profile ────────────────────────────────
+# Inherits from application.yml, overrides below.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    clean-disabled: true
+
+logging:
+  level:
+    root: INFO
+    it.cinofilo: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

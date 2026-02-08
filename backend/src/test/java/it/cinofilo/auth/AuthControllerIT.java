@@ -1,0 +1,238 @@
+package it.cinofilo.auth;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
+import it.cinofilo.AbstractPostgresIT;
+import it.cinofilo.security.JwtService;
+import it.cinofilo.tenancy.Role;
+import it.cinofilo.tenancy.Tenant;
+import it.cinofilo.tenancy.TenantRepository;
+import it.cinofilo.users.AppUser;
+import it.cinofilo.users.AppUserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
+
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class AuthControllerIT extends AbstractPostgresIT {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private TenantRepository tenantRepository;
+
+    @Autowired
+    private AppUserRepository appUserRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtService jwtService;
+
+    private Tenant testTenant;
+    private AppUser testUser;
+    private static final String TEST_PASSWORD = "Password123!";
+    private String uniqueSlug;
+
+    @BeforeEach
+    void setUp() {
+        // Clean database
+        appUserRepository.deleteAll();
+        tenantRepository.deleteAll();
+
+        // Create test tenant with unique slug
+        uniqueSlug = "test-tenant-" + UUID.randomUUID();
+        testTenant = Tenant.builder()
+                .name("Test Tenant")
+                .type("PENSIONE")
+                .slug(uniqueSlug)
+                .capacityBoxes(10)
+                .build();
+        testTenant = tenantRepository.save(testTenant);
+
+        // Create test user with BCrypt password
+        testUser = AppUser.builder()
+                .tenant(testTenant)
+                .username("testowner")
+                .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
+                .role(Role.TENANT_OWNER)
+                .enabled(true)
+                .build();
+        testUser = appUserRepository.save(testUser);
+    }
+
+    @Test
+    void shouldLoginSuccessfullyAndReturnToken() throws Exception {
+        // Given
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").isNumber())
+                .andExpect(jsonPath("$.expiresIn").value(greaterThan(0)));
+    }
+
+    @Test
+    void shouldReturn401OnInvalidPassword() throws Exception {
+        // Given
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", "WrongPassword");
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401OnNonExistentUser() throws Exception {
+        // Given
+        LoginRequest request = new LoginRequest(uniqueSlug, "nonexistent", TEST_PASSWORD);
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401OnNonExistentTenant() throws Exception {
+        // Given
+        LoginRequest request = new LoginRequest("nonexistent-tenant", "testowner", TEST_PASSWORD);
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401OnDisabledUser() throws Exception {
+        // Given - Create disabled user
+        AppUser disabledUser = AppUser.builder()
+                .tenant(testTenant)
+                .username("disabled")
+                .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
+                .role(Role.TENANT_STAFF)
+                .enabled(false)
+                .build();
+        appUserRepository.save(disabledUser);
+
+        LoginRequest request = new LoginRequest(uniqueSlug, "disabled", TEST_PASSWORD);
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldLoginSuccessfullyAndTokenIsValidated() throws Exception {
+        // Given - Get token through login
+        LoginRequest loginRequest = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
+        String loginResponse = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        LoginResponse response = objectMapper.readValue(loginResponse, LoginResponse.class);
+        String token = response.getToken();
+
+        // Then - Verify token is valid and contains correct claims
+        Claims claims = jwtService.validateAndExtractClaims(token);
+        assertNotNull(claims);
+        assertEquals("testowner", claims.get("username"));
+        assertEquals("TENANT_OWNER", claims.get("role"));
+    }
+
+    @Test
+    void shouldReturn401OnMissingToken() throws Exception {
+        // Given - A protected endpoint that requires authentication
+        // Note: Since all endpoints except /auth/** and /health require auth,
+        // we'd need a custom endpoint to test this properly
+        // For now, verify that accessing a non-existent protected endpoint without token fails
+        
+        // When/Then
+        mockMvc.perform(get("/some-protected-endpoint"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn401OnInvalidToken() throws Exception {
+        // Given
+        String invalidToken = "invalid.jwt.token";
+
+        // When/Then
+        mockMvc.perform(get("/some-protected-endpoint")
+                        .header("Authorization", "Bearer " + invalidToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturn400OnMissingLoginFields() throws Exception {
+        // Given - Request with empty tenantSlug
+        String invalidRequest = "{\"tenantSlug\":\"\",\"username\":\"test\",\"password\":\"test\"}";
+
+        // When/Then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldAllowAnonymousAccessToLoginEndpoint() throws Exception {
+        // Given - Valid login request WITHOUT Authorization header
+        LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
+
+        // When/Then - Should NOT return 401 for missing token, should process login
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+    }
+
+    @Test
+    void shouldRequireAuthenticationForProtectedEndpoints() throws Exception {
+        // Given - No Authorization header
+
+        // When/Then - Protected endpoint should return 401
+        mockMvc.perform(get("/customers")
+                        .header("X-Tenant-Slug", uniqueSlug))
+                .andExpect(status().isUnauthorized());
+    }
+}

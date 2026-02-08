@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Centro Cinofilo Frontend",
   "scripts": {
-    "start": "ng serve",
-    "dev": "ng serve --open",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "dev": "ng serve --open --proxy-config proxy.conf.json",
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "test": "ng test",
@@ -33,6 +33,8 @@
     "@types/jasmine": "^5.1.0",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
+    "autoprefixer": "^10.4.24",
+    "daisyui": "^4.12.24",
     "eslint": "^8.53.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
@@ -42,7 +44,9 @@
     "karma-coverage": "^2.2.0",
     "karma-jasmine": "^5.1.0",
     "karma-jasmine-html-reporter": "^2.1.0",
+    "postcss": "^8.5.6",
     "prettier": "^3.0.0",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.2.0"
   }
 }

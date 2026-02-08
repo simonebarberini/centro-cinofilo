@@ -1,0 +1,123 @@
+<div class="p-4 md:p-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+    <h1 class="text-2xl font-bold">📅 Calendario</h1>
+
+    <!-- Navigazione -->
+    <div class="flex items-center gap-2">
+      <button class="btn btn-ghost btn-sm" (click)="prevWindow()" title="4 settimane precedenti">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button class="btn btn-ghost btn-sm" (click)="goToday()">Oggi</button>
+      <span class="font-semibold text-sm min-w-[200px] text-center">{{ windowLabel }}</span>
+      <button class="btn btn-ghost btn-sm" (click)="nextWindow()" title="4 settimane successive">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex justify-center py-12">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="alert alert-error mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ error }}</span>
+    <button class="btn btn-sm btn-ghost" (click)="loadWeek()">Riprova</button>
+  </div>
+
+  <!-- Header colonne -->
+  <div *ngIf="!loading && !error && days.length > 0" class="grid grid-cols-7 gap-1.5 mb-1.5">
+    <div *ngFor="let h of columnHeaders"
+         class="text-center text-xs font-bold uppercase text-base-content/40 py-1">
+      {{ h }}
+    </div>
+  </div>
+
+  <!-- Griglia 4 settimane (7 × 4) -->
+  <div *ngIf="!loading && !error && days.length > 0" class="grid grid-cols-7 gap-1.5">
+    <div *ngFor="let day of days; let i = index"
+         class="card bg-base-100 border cursor-pointer transition-all hover:shadow-md"
+         [ngClass]="[
+           dayBorderClass(day),
+           selectedDay?.date === day.date ? 'ring-2 ring-primary' : '',
+           isToday(day) ? 'shadow-md shadow-primary/20' : 'shadow-sm'
+         ]"
+         (click)="selectDay(day)">
+
+      <div class="card-body p-2 items-center text-center gap-0.5">
+        <!-- Data (giorno + mese breve) -->
+        <span class="text-sm font-bold leading-tight" [ngClass]="{ 'text-primary': isToday(day) }">
+          {{ dayLabel(day) }}
+        </span>
+
+        <!-- Indicatore oggi -->
+        <span *ngIf="isToday(day)" class="badge badge-primary badge-xs leading-none">oggi</span>
+
+        <!-- Badge disponibilità compatto -->
+        <div class="mt-1 rounded-md px-2 py-1 text-center w-full" [ngClass]="dayColorClass(day)">
+          <div class="text-lg font-bold leading-tight">{{ day.available }}</div>
+          <div class="text-[9px] uppercase tracking-wide opacity-80">disp.</div>
+        </div>
+
+        <!-- Occupazione -->
+        <div class="text-[11px] text-base-content/50 leading-tight mt-0.5">
+          {{ day.booked }}/{{ day.capacity }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dettaglio giorno selezionato -->
+  <div *ngIf="selectedDay" class="card bg-base-100 shadow-sm mt-6 border border-base-300">
+    <div class="card-body">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title text-lg">
+          Prenotazioni del {{ selectedDay.date }}
+        </h2>
+        <button class="btn btn-ghost btn-sm btn-circle" (click)="closeDetail()">✕</button>
+      </div>
+
+      <!-- Nessuna prenotazione -->
+      <div *ngIf="selectedDayBookings.length === 0" class="py-6 text-center text-base-content/50">
+        <div class="text-3xl mb-2">🎉</div>
+        Nessuna prenotazione per questo giorno.
+      </div>
+
+      <!-- Lista prenotazioni -->
+      <div *ngIf="selectedDayBookings.length > 0" class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Cane</th>
+              <th>Check-in</th>
+              <th>Check-out</th>
+              <th class="hidden sm:table-cell">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of selectedDayBookings">
+              <td class="font-medium">{{ b.customer.firstName }} {{ b.customer.lastName }}</td>
+              <td>{{ b.dog.name }}</td>
+              <td>{{ b.startDate }}</td>
+              <td>{{ b.endDate }}</td>
+              <td class="hidden sm:table-cell max-w-xs truncate">
+                <span *ngIf="b.notes">{{ b.notes }}</span>
+                <span *ngIf="!b.notes" class="text-base-content/40">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,75 @@
+<div class="p-4 md:p-6">
+  <h1 class="text-2xl font-bold mb-6">⚙️ Impostazioni</h1>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex justify-center py-12">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="alert alert-error mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ error }}</span>
+  </div>
+
+  <!-- Success toast -->
+  <div *ngIf="success" class="alert alert-success mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    </svg>
+    <span>{{ success }}</span>
+  </div>
+
+  <div *ngIf="!loading && settings" class="grid gap-6 max-w-xl">
+
+    <!-- Tenant info (read-only) -->
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title text-base">🏢 Centro</h2>
+        <div class="grid grid-cols-2 gap-2 text-sm mt-2">
+          <span class="text-base-content/60">Nome</span>
+          <span class="font-medium">{{ settings.name }}</span>
+          <span class="text-base-content/60">Slug</span>
+          <span class="font-medium font-mono text-xs">{{ settings.slug }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capienza -->
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title text-base">📦 Capienza</h2>
+        <p class="text-sm text-base-content/60 mb-3">Numero massimo di box disponibili per le prenotazioni.</p>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Numero box</span></label>
+          <input type="number" class="input input-bordered w-32"
+                 [(ngModel)]="capacityBoxes" min="0" step="1" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Preferenze -->
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title text-base">🎨 Preferenze</h2>
+        <div class="form-control mt-2">
+          <label class="label"><span class="label-text">Vista calendario predefinita</span></label>
+          <select class="select select-bordered w-64" [(ngModel)]="defaultCalendarView">
+            <option value="WEEK">Settimanale (7 giorni)</option>
+            <option value="FOUR_WEEKS">4 settimane (28 giorni)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div class="flex justify-end">
+      <button class="btn btn-primary" [disabled]="saving" (click)="save()">
+        <span *ngIf="saving" class="loading loading-spinner loading-sm"></span>
+        Salva impostazioni
+      </button>
+    </div>
+  </div>
+</div>

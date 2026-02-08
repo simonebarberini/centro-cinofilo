@@ -61,6 +61,117 @@ cd backend && mvn test
 cd frontend && npm test
 ```
 
+## Postman Smoke Tests
+
+Questa cartella contiene una collection Postman e un environment per effettuare smoke test manuale delle API Auth e Customers.
+
+### Setup di Postman
+
+1. **Importare la collection e l'environment**:
+   - Aprire Postman
+   - Cliccare su "Import" (in alto a sinistra)
+   - Selezionare `postman/CentroCinofilo.postman_collection.json`
+   - Ripetere per `postman/local-dev.postman_environment.json`
+
+2. **Selezionare l'environment**:
+   - In alto a destra, selezionare "local-dev" dal dropdown degli environment
+
+3. **Verificare le variabili**:
+   - Cliccare su "local-dev" → "Edit"
+   - Verificare che le variabili siano correttamente configurate:
+     - `baseUrl`: `http://localhost:8080`
+     - `tenantSlug`: `demo-centro`
+     - `username`: `owner`
+     - `password`: `owner123!`
+     - **Variabili runtime** (devono restare vuote):
+       - `accessToken`: vuoto (riempito automaticamente da Login)
+       - `customerId`: vuoto (riempito automaticamente da Create Customer)
+       - `dogId`: vuoto (riempito automaticamente da Create Dog)
+       - `bookingId`: vuoto (riempito automaticamente da Create Booking)
+
+### Ordine di Esecuzione
+
+Eseguire le richieste **in questo ordine** per un corretto smoke test:
+
+1. **Login** (folder Auth)
+   - Autentica l'utente con il tenant specificato
+   - Salva automaticamente il token JWT in `accessToken`
+
+2. **Create Customer** (folder Customers)
+   - Crea un nuovo customer
+   - Salva automaticamente l'ID del customer in `customerId`
+
+3. **Create Dog** (folder Dogs)
+   - Crea un nuovo cane per il customer
+   - Salva automaticamente l'ID del cane in `dogId`
+
+4. **Create Booking** (folder Bookings)
+   - Crea una prenotazione per il cane
+   - Salva automaticamente l'ID della prenotazione in `bookingId`
+
+5. **List Bookings** (folder Bookings)
+   - Elenca tutte le prenotazioni per il tenant
+
+6. **Get Booking** (folder Bookings)
+   - Recupera il dettaglio della prenotazione creata
+
+7. **Update Booking** (folder Bookings)
+   - Aggiorna le date della prenotazione
+
+8. **Cancel Booking** (folder Bookings)
+   - Annulla la prenotazione
+
+9. **List Customers** (folder Customers)
+   - Elenca tutti i customer per il tenant corrente
+
+10. **Get Customer** (folder Customers)
+    - Recupera il dettaglio del customer
+
+11. **Update Customer** (folder Customers)
+    - Aggiorna il customer con nuovi dati
+
+12. **Get Dog** (folder Dogs)
+    - Recupera il dettaglio del cane
+
+13. **Update Dog** (folder Dogs)
+    - Aggiorna il cane con nuovi dati
+
+14. **Delete Dog** (folder Dogs)
+    - Elimina il cane
+
+15. **Delete Customer** (folder Customers)
+    - Elimina il customer
+
+### Versioning & Import
+
+**Importante**: La cartella `/postman` nel repository è la **fonte di verità**. Per mantenere la sincronizzazione con il team:
+
+**Workflow locale:**
+1. `git pull` per ottenere i file più recenti dal repo
+2. In Postman, scegli **Import** → seleziona file → **Replace** (non merge)
+3. I tuoi token e ID runtime rimangono in memoria Postman durante la sessione
+4. Al termine della sessione, Postman non salva i token nei file locali
+
+**Regole Git:**
+- **Non committare mai**: `accessToken`, `customerId`, `dogId`, `bookingId` con valori reali
+- Questi campi devono **restare vuoti** (`""`) nel file di repo
+- I token/ID sono solo runtime, generati dai test script al login/create
+- Le variabili di ambiente (`baseUrl`, `tenantSlug`, `username`, `password`) possono restare nel repo
+
+**Esportazione corretta:**
+Se devi esportare l'environment dopo una sessione di test:
+1. In Postman, clicca sull'environment → Download
+2. **Prima di committare**, verifica che i campi sensibili siano vuoti:
+   - `"value": ""` per accessToken, customerId, dogId, bookingId
+   - Solo `initialValue` e `value` devono essere vuoti
+
+### Note Importanti
+
+- **Token e ID automatici**: I test script di Postman estraggono automaticamente `accessToken` dalla response di Login e `customerId` dalla response di Create Customer. Non è necessario copiarli manualmente.
+- **Environment setup**: L'environment `local-dev` contiene i dati di default per lo sviluppo locale. Se si usa un'altra configurazione (prod, staging), creare un nuovo environment.
+- **Backend in esecuzione**: Assicurarsi che il backend Spring Boot sia in esecuzione su `http://localhost:8080` prima di eseguire i test.
+- **Team sync**: Usa sempre "Import Replace" e non "Import Merge" per evitare conflitti nell'environment.
+
 ## Avvio DB locale
 
 ### Prerequisiti
@@ -540,6 +651,61 @@ git push origin feature/mia-feature
 ### Contatti e Supporto
 
 Per dubbi sulla struttura o sulle convenzioni, consultare la documentazione in `docs/` o il README.
+
+---
+
+## Deploy V1 (Docker)
+
+Stack di produzione: **PostgreSQL + Spring Boot + Angular/Nginx** orchestrati con Docker Compose.
+
+### Prerequisiti
+
+- Docker ≥ 24 e Docker Compose ≥ 2
+- Porta **80** libera (frontend) e **5432** disponibile per il container
+
+### Quick start
+
+```bash
+# 1. Crea il file di environment (una sola volta)
+cp .env.prod.example .env.prod
+#    ✏️  modifica .env.prod con password e JWT_SECRET reali
+
+# 2. Build & avvio
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 3. Verifica
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod ps
+```
+
+### URL
+
+| Servizio  | URL                         |
+|-----------|-----------------------------|
+| Frontend  | http://localhost             |
+| API       | http://localhost/api         |
+| Health    | http://localhost/api/actuator/health |
+
+### Logs
+
+```bash
+# Tutti i servizi
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f
+
+# Solo backend
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f backend
+```
+
+### Stop & pulizia
+
+```bash
+# Stop (preserva volumi)
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down
+
+# Stop + cancella volumi (⚠️  dati persi)
+docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down -v
+```
+
+---
 
 ## Contribuzione
 

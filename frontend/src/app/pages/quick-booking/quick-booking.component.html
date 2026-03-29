@@ -1,0 +1,255 @@
+<div class="p-4 md:p-6 max-w-2xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold">⚡ Prenotazione rapida</h1>
+    <p class="text-base-content/60 text-sm mt-1">
+      Crea cliente, cane e prenotazione in un unico passaggio.
+    </p>
+  </div>
+
+  <!-- Server Error -->
+  <div *ngIf="serverError" class="alert alert-error mb-6 text-sm">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ serverError }}</span>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-6">
+
+    <!-- ── SEZIONE CLIENTE ── -->
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="card-title text-base">👤 Cliente</h2>
+          <div class="join">
+            <button type="button" class="join-item btn btn-sm"
+              [class.btn-primary]="customerMode === 'existing'"
+              [class.btn-ghost]="customerMode !== 'existing'"
+              (click)="setCustomerMode('existing')">
+              Esistente
+            </button>
+            <button type="button" class="join-item btn btn-sm"
+              [class.btn-primary]="customerMode === 'new'"
+              [class.btn-ghost]="customerMode !== 'new'"
+              (click)="setCustomerMode('new')">
+              Nuovo
+            </button>
+          </div>
+        </div>
+
+        <!-- Existing customer -->
+        @if (customerMode === 'existing') {
+          <div class="form-control">
+            <label class="label"><span class="label-text">Seleziona cliente *</span></label>
+            <select formControlName="customerId" class="select select-bordered"
+                    [class.select-error]="isInvalid('customerId')">
+              <option value="">
+                {{ loadingCustomers ? 'Caricamento...' : 'Seleziona un cliente...' }}
+              </option>
+              <option *ngFor="let c of customers" [value]="c.id">
+                {{ c.firstName }} {{ c.lastName }}
+                @if (c.phone) { — {{ c.phone }} }
+              </option>
+            </select>
+            @if (isInvalid('customerId')) {
+              <label class="label"><span class="label-text-alt text-error">Seleziona un cliente</span></label>
+            }
+          </div>
+        }
+
+        <!-- New customer -->
+        @if (customerMode === 'new') {
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label"><span class="label-text">Nome *</span></label>
+              <input type="text" formControlName="customerFirstName" class="input input-bordered"
+                     [class.input-error]="isInvalid('customerFirstName')" placeholder="Mario" />
+              @if (isInvalid('customerFirstName')) {
+                <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
+              }
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Cognome *</span></label>
+              <input type="text" formControlName="customerLastName" class="input input-bordered"
+                     [class.input-error]="isInvalid('customerLastName')" placeholder="Rossi" />
+              @if (isInvalid('customerLastName')) {
+                <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
+              }
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Email</span></label>
+              <input type="email" formControlName="customerEmail" class="input input-bordered"
+                     [class.input-error]="isInvalid('customerEmail')" placeholder="mario@example.com" />
+              @if (isInvalid('customerEmail')) {
+                <label class="label"><span class="label-text-alt text-error">Email non valida</span></label>
+              }
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Telefono</span></label>
+              <input type="tel" formControlName="customerPhone" class="input input-bordered"
+                     placeholder="+39 333 1234567" />
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ── SEZIONE CANE ── -->
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="card-title text-base">🐾 Cane</h2>
+          <div class="join">
+            <button type="button" class="join-item btn btn-sm"
+              [class.btn-primary]="dogMode === 'existing'"
+              [class.btn-ghost]="dogMode !== 'existing'"
+              [disabled]="customerMode === 'new'"
+              [title]="customerMode === 'new' ? 'Impossibile selezionare un cane esistente per un nuovo cliente' : ''"
+              (click)="setDogMode('existing')">
+              Esistente
+            </button>
+            <button type="button" class="join-item btn btn-sm"
+              [class.btn-primary]="dogMode === 'new'"
+              [class.btn-ghost]="dogMode !== 'new'"
+              (click)="setDogMode('new')">
+              Nuovo
+            </button>
+          </div>
+        </div>
+
+        <!-- Note for new customer -->
+        @if (customerMode === 'new') {
+          <p class="text-xs text-base-content/50 mb-3">
+            Per un nuovo cliente è necessario registrare anche il cane.
+          </p>
+        }
+
+        <!-- Existing dog -->
+        @if (dogMode === 'existing') {
+          <div class="form-control">
+            <label class="label"><span class="label-text">Seleziona cane *</span></label>
+            <select formControlName="dogId" class="select select-bordered"
+                    [class.select-error]="isInvalid('dogId')"
+                    [attr.disabled]="!form.get('customerId')?.value ? '' : null">
+              <option value="">
+                @if (loadingDogs) { Caricamento... }
+                @else if (!form.get('customerId')?.value) { Seleziona prima un cliente... }
+                @else if (dogs.length === 0) { Nessun cane per questo cliente }
+                @else { Seleziona un cane... }
+              </option>
+              <option *ngFor="let d of dogs" [value]="d.id">
+                {{ d.name }}{{ d.breed ? ' (' + d.breed + ')' : '' }}
+              </option>
+            </select>
+            @if (isInvalid('dogId')) {
+              <label class="label"><span class="label-text-alt text-error">Seleziona un cane</span></label>
+            }
+          </div>
+        }
+
+        <!-- New dog -->
+        @if (dogMode === 'new') {
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="form-control sm:col-span-2">
+              <label class="label"><span class="label-text">Nome cane *</span></label>
+              <input type="text" formControlName="dogName" class="input input-bordered"
+                     [class.input-error]="isInvalid('dogName')" placeholder="Fido" />
+              @if (isInvalid('dogName')) {
+                <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
+              }
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Razza</span></label>
+              <input type="text" formControlName="dogBreed" class="input input-bordered"
+                     placeholder="Labrador" />
+            </div>
+            <div class="form-control">
+              <label class="label"><span class="label-text">Data di nascita</span></label>
+              <input type="date" formControlName="dogBirthDate" class="input input-bordered" />
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ── SEZIONE PRENOTAZIONE ── -->
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-base mb-4">📅 Prenotazione</h2>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label"><span class="label-text">Check-in *</span></label>
+            <input type="date" formControlName="startDate" class="input input-bordered"
+                   [class.input-error]="isInvalid('startDate')" />
+            @if (isInvalid('startDate')) {
+              <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
+            }
+          </div>
+          <div class="form-control">
+            <label class="label"><span class="label-text">Check-out *</span></label>
+            <input type="date" formControlName="endDate" class="input input-bordered"
+                   [class.input-error]="isInvalid('endDate')" />
+            @if (isInvalid('endDate')) {
+              <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
+            }
+          </div>
+        </div>
+
+        <!-- Availability indicator -->
+        @if (checkingAvailability) {
+          <div class="mt-3 flex items-center gap-2">
+            <span class="loading loading-spinner loading-xs text-primary"></span>
+            <span class="text-sm text-base-content/60">Verifica disponibilità…</span>
+          </div>
+        }
+        @if (availabilityError) {
+          <div class="mt-3 text-sm text-warning">⚠ {{ availabilityError }}</div>
+        }
+        @if (!checkingAvailability && availability.length > 0) {
+          @if (!hasUnavailableDays) {
+            <div class="mt-3 text-sm text-success flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Disponibilità confermata per tutte le date.
+            </div>
+          }
+          @if (hasUnavailableDays) {
+            <div class="mt-3 text-sm text-error">
+              <p class="font-medium mb-1">⚠ Alcune date non sono disponibili:</p>
+              <div class="max-h-32 overflow-y-auto">
+                <div *ngFor="let day of availability" class="flex justify-between text-xs py-0.5 px-2 rounded"
+                     [ngClass]="{ 'bg-error/10 text-error': day.available <= 0 }">
+                  <span>{{ day.date }}</span>
+                  <span>{{ day.available }}/{{ day.capacity }} posti</span>
+                </div>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Notes -->
+        <div class="form-control mt-4">
+          <label class="label"><span class="label-text">Note</span></label>
+          <textarea formControlName="notes" class="textarea textarea-bordered" rows="3"
+                    placeholder="Note aggiuntive sulla prenotazione..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AZIONI ── -->
+    <div class="flex justify-end gap-3">
+      <a routerLink="/bookings" class="btn btn-ghost">Annulla</a>
+      <button type="submit" class="btn btn-primary" [disabled]="saving">
+        @if (saving) {
+          <span class="loading loading-spinner loading-sm"></span>
+        }
+        {{ saving ? 'Salvataggio...' : 'Crea prenotazione' }}
+      </button>
+    </div>
+
+  </form>
+</div>

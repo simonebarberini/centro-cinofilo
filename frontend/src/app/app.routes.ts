@@ -15,6 +15,7 @@ export const routes: Routes = [
       { path: 'customers/:customerId/dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
       { path: 'dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
       { path: 'bookings', loadComponent: () => import('./pages/bookings/bookings.component').then(m => m.BookingsComponent) },
+      { path: 'quick-booking', loadComponent: () => import('./pages/quick-booking/quick-booking.component').then(m => m.QuickBookingComponent) },
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
       { path: '', redirectTo: 'calendar', pathMatch: 'full' }
     ]

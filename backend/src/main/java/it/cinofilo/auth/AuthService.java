@@ -1,6 +1,7 @@
 package it.cinofilo.auth;
 
 import it.cinofilo.security.JwtService;
+import it.cinofilo.tenancy.Role;
 import it.cinofilo.tenancy.Tenant;
 import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUser;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -50,5 +52,36 @@ public class AuthService {
         );
 
         return new LoginResponse(token, expirationMs / 1000); // Return seconds
+    }
+
+    @Transactional
+    public LoginResponse register(RegisterRequest request) {
+        if (tenantRepository.existsBySlug(request.getTenantSlug())) {
+            throw new ConflictException("Slug già in uso: " + request.getTenantSlug());
+        }
+
+        Tenant tenant = Tenant.builder()
+                .name(request.getTenantName())
+                .type(request.getTenantType())
+                .slug(request.getTenantSlug())
+                .build();
+        tenant = tenantRepository.save(tenant);
+
+        AppUser owner = AppUser.builder()
+                .tenant(tenant)
+                .username(request.getUsername())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .role(Role.TENANT_OWNER)
+                .build();
+        owner = userRepository.save(owner);
+
+        String token = jwtService.generateToken(
+                owner.getId(),
+                tenant.getId(),
+                owner.getRole().name(),
+                owner.getUsername()
+        );
+
+        return new LoginResponse(token, expirationMs / 1000);
     }
 }

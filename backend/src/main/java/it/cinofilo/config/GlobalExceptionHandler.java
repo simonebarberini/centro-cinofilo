@@ -1,5 +1,6 @@
 package it.cinofilo.config;
 
+import it.cinofilo.auth.ConflictException;
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.bookings.BookingNotFoundException;
@@ -23,6 +24,13 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized attempt: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflictException(ConflictException ex) {
+        log.warn("Conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(TenantNotFoundException.class)

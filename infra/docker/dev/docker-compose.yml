@@ -1,0 +1,31 @@
+# ── Sviluppo locale – solo database ──────────────────────────────────────────
+# Avvia solo PostgreSQL. Backend e frontend girano direttamente in locale.
+#
+# Avvio (dalla root del progetto):
+#   docker compose --env-file .env.dev -f infra/docker/dev/docker-compose.yml up -d
+#
+# Stop:
+#   docker compose --env-file .env.dev -f infra/docker/dev/docker-compose.yml down
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinofilo-dev-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cinofilo}
+      POSTGRES_USER: ${POSTGRES_USER:-cinofilo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cinofilo}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cinofilo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+    driver: local

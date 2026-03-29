@@ -47,6 +47,7 @@ lerna-debug.log*
 *.tgz
 .yarn-integrity
 .env
+.env.dev
 .env.prod
 .env.local
 .env.*.local

@@ -9,6 +9,14 @@ interface LoginRequest {
   password: string;
 }
 
+interface RegisterRequest {
+  tenantName: string;
+  tenantType: string;
+  tenantSlug: string;
+  username: string;
+  password: string;
+}
+
 interface LoginResponse {
   token: string;
   tokenType: string;
@@ -24,6 +32,12 @@ export class AuthService {
   login(tenantSlug: string, username: string, password: string): Observable<LoginResponse> {
     const body: LoginRequest = { tenantSlug, username, password };
     return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, body).pipe(
+      tap((res) => localStorage.setItem(this.TOKEN_KEY, res.token))
+    );
+  }
+
+  register(data: RegisterRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/register`, data).pipe(
       tap((res) => localStorage.setItem(this.TOKEN_KEY, res.token))
     );
   }

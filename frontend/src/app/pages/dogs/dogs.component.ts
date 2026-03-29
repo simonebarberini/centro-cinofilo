@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { DogsApiService } from '../../core/api/dogs-api.service';
 import { CustomersApiService } from '../../core/api/customers-api.service';
 import { Dog } from '../../core/models/dog.model';
+import { Customer } from '../../core/models/customer.model';
 import { DogFormComponent } from './dog-form.component';
 
 @Component({
@@ -24,6 +25,8 @@ export class DogsComponent implements OnInit {
   allDogsMode = false;
   /** mappa customerId → nome completo cliente */
   customerMap: Record<string, string> = {};
+  /** lista clienti per il form in allDogsMode */
+  customerList: Customer[] = [];
 
   formOpen = false;
   editingDog: Dog | null = null;
@@ -61,6 +64,7 @@ export class DogsComponent implements OnInit {
           for (const c of customers) {
             this.customerMap[c.id] = `${c.firstName} ${c.lastName}`;
           }
+          this.customerList = customers;
           this.dogs = dogs;
           this.loading = false;
         },

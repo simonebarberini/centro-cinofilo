@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DogsApiService } from '../../core/api/dogs-api.service';
 import { Dog, CreateDogRequest, UpdateDogRequest } from '../../core/models/dog.model';
+import { Customer } from '../../core/models/customer.model';
 
 @Component({
   selector: 'app-dog-form',
@@ -18,8 +19,21 @@ import { Dog, CreateDogRequest, UpdateDogRequest } from '../../core/models/dog.m
         </div>
 
         <form [formGroup]="form" (ngSubmit)="submit()">
+          <!-- Customer select (only in allDogsMode) -->
+          <div class="form-control" *ngIf="!customerId && !dog">
+            <label class="label"><span class="label-text">Proprietario *</span></label>
+            <select formControlName="selectedCustomerId" class="select select-bordered"
+                    [class.select-error]="isInvalid('selectedCustomerId')">
+              <option value="">Seleziona il cliente...</option>
+              <option *ngFor="let c of customers" [value]="c.id">{{ c.firstName }} {{ c.lastName }}</option>
+            </select>
+            <label class="label" *ngIf="isInvalid('selectedCustomerId')">
+              <span class="label-text-alt text-error">Il proprietario è obbligatorio</span>
+            </label>
+          </div>
+
           <!-- Name -->
-          <div class="form-control">
+          <div class="form-control" [class.mt-4]="!customerId && !dog">
             <label class="label"><span class="label-text">Nome *</span></label>
             <input type="text" formControlName="name" class="input input-bordered"
                    [class.input-error]="isInvalid('name')" placeholder="Fido" />
@@ -67,6 +81,7 @@ import { Dog, CreateDogRequest, UpdateDogRequest } from '../../core/models/dog.m
 export class DogFormComponent implements OnInit {
   @Input() dog: Dog | null = null;
   @Input() customerId = '';
+  @Input() customers: Customer[] = [];
   @Output() saved = new EventEmitter<void>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -80,7 +95,12 @@ export class DogFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const needsCustomerSelect = !this.customerId && !this.dog;
     this.form = this.fb.group({
+      selectedCustomerId: [
+        '',
+        needsCustomerSelect ? Validators.required : []
+      ],
       name: [this.dog?.name ?? '', Validators.required],
       breed: [this.dog?.breed ?? ''],
       birthDate: [this.dog?.birthDate ?? ''],
@@ -117,7 +137,7 @@ export class DogFormComponent implements OnInit {
       });
     } else {
       const body: CreateDogRequest = {
-        customerId: this.customerId,
+        customerId: this.customerId || val.selectedCustomerId,
         name: val.name,
         breed: val.breed,
         birthDate,

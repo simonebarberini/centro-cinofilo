@@ -10,7 +10,7 @@
       </button>
       <h1 class="text-2xl font-bold">🐾 {{ allDogsMode ? 'Cani' : 'Cani di ' + customerName }}</h1>
     </div>
-    <button *ngIf="!allDogsMode" class="btn btn-primary" (click)="openCreate()">
+    <button class="btn btn-primary" (click)="openCreate()">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
@@ -37,7 +37,7 @@
     <div class="text-5xl mb-4">🐾</div>
     <h2 class="text-xl font-semibold mb-2">{{ allDogsMode ? 'Nessun cane registrato' : 'Nessun cane per questo cliente' }}</h2>
     <p class="text-base-content/60 mb-4">{{ allDogsMode ? 'Non ci sono cani registrati.' : 'Aggiungi il primo cane per iniziare.' }}</p>
-    <div *ngIf="!allDogsMode">
+    <div>
       <button class="btn btn-primary" (click)="openCreate()">Aggiungi cane</button>
     </div>
   </div>
@@ -98,6 +98,7 @@
   *ngIf="formOpen"
   [dog]="editingDog"
   [customerId]="customerId"
+  [customers]="customerList"
   (saved)="onSaved()"
   (cancelled)="closeForm()">
 </app-dog-form>

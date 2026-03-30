@@ -1,18 +1,28 @@
 spring:
   application:
     name: centro-cinofilo-backend-dev
-  
   jpa:
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         use_sql_comments: true
-  
   flyway:
     enabled: true
     clean-disabled: false
     baseline-on-migrate: true
+  # Mail – dev usa Mailhog (docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog)
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 logging:
   level:
@@ -28,3 +38,6 @@ logging:
 jwt:
   secret: dev-secret-key-minimum-256-bits-for-hs256-algorithm-change-in-production
   expiration-ms: 28800000
+
+app:
+  base-url: http://localhost:4200

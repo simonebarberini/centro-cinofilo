@@ -54,6 +54,8 @@ public class DevDataSeeder {
                     .passwordHash(hashedPassword)
                     .role(Role.TENANT_OWNER)
                     .enabled(true)
+                    .email("owner@demo.it")
+                    .emailVerified(true)
                     .build();
 
             ownerUser = appUserRepository.save(ownerUser);

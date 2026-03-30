@@ -1,0 +1,85 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200 px-4">
+  <div class="card w-full max-w-md bg-base-100 shadow-xl">
+    <div class="card-body text-center">
+
+      @if (!resendMode && !resendSuccess) {
+        <!-- Stato: registrazione appena completata -->
+        <div class="text-5xl mb-4">📬</div>
+        <h2 class="text-2xl font-bold text-primary mb-2">Controlla la tua email</h2>
+        <p class="text-base-content/70 mb-1">
+          Abbiamo inviato un link di verifica a:
+        </p>
+        @if (email) {
+          <p class="font-semibold text-base-content mb-4">{{ email }}</p>
+        }
+        <p class="text-sm text-base-content/60 mb-6">
+          Clicca sul link nell'email per attivare il tuo account.<br>
+          Controlla anche la cartella spam.
+        </p>
+
+        <div class="divider text-xs text-base-content/40">Non hai ricevuto l'email?</div>
+      }
+
+      @if (resendSuccess) {
+        <!-- Stato: reinvio completato -->
+        <div class="text-5xl mb-4">✅</div>
+        <h2 class="text-xl font-bold text-success mb-2">Email inviata!</h2>
+        <p class="text-base-content/70 mb-6">Controlla la tua casella di posta e lo spam.</p>
+        <a routerLink="/login" class="btn btn-primary w-full">Vai al login</a>
+      }
+
+      @if (!resendSuccess) {
+        <!-- Form reinvio -->
+        <form [formGroup]="resendForm" (ngSubmit)="onResend()" class="space-y-3 text-left">
+          <div class="form-control">
+            <label class="label" for="resend-email">
+              <span class="label-text font-medium">La tua email</span>
+            </label>
+            <input
+              id="resend-email"
+              type="email"
+              formControlName="email"
+              placeholder="email@esempio.it"
+              class="input input-bordered w-full"
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label" for="resend-slug">
+              <span class="label-text font-medium">Slug del centro</span>
+            </label>
+            <input
+              id="resend-slug"
+              type="text"
+              formControlName="tenantSlug"
+              placeholder="es. il-mio-centro"
+              class="input input-bordered w-full"
+            />
+          </div>
+
+          @if (resendError) {
+            <div class="alert alert-error text-sm">
+              <span>{{ resendError }}</span>
+            </div>
+          }
+
+          <button
+            type="submit"
+            class="btn btn-outline btn-primary w-full"
+            [disabled]="resendForm.invalid || resendLoading"
+          >
+            @if (resendLoading) {
+              <span class="loading loading-spinner loading-sm"></span>
+            }
+            Reinvia email di verifica
+          </button>
+        </form>
+
+        <div class="mt-4">
+          <a routerLink="/login" class="link link-primary text-sm">Torna al login</a>
+        </div>
+      }
+
+    </div>
+  </div>
+</div>

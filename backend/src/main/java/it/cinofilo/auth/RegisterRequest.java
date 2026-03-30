@@ -1,5 +1,6 @@
 package it.cinofilo.auth;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -32,4 +33,9 @@ public class RegisterRequest {
     @NotBlank(message = "La password è obbligatoria")
     @Size(min = 8, message = "La password deve essere di almeno 8 caratteri")
     private String password;
+
+    @NotBlank(message = "L'email è obbligatoria")
+    @Email(message = "Email non valida")
+    @Size(max = 255, message = "L'email non può superare 255 caratteri")
+    private String email;
 }

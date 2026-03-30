@@ -9,6 +9,17 @@ spring:
   flyway:
     enabled: true
     clean-disabled: true
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 logging:
   level:
@@ -16,3 +27,8 @@ logging:
     it.cinofilo: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+app:
+  base-url: ${APP_BASE_URL}
+  mail:
+    from: ${MAIL_FROM}

@@ -1,6 +1,7 @@
 package it.cinofilo.config;
 
 import it.cinofilo.auth.ConflictException;
+import it.cinofilo.auth.EmailNotVerifiedException;
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.bookings.BookingNotFoundException;
@@ -24,6 +25,13 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized attempt: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
+        log.warn("Email not verified: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(ConflictException.class)

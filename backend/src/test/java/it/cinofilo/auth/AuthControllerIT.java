@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -50,6 +52,10 @@ class AuthControllerIT extends AbstractPostgresIT {
     @Autowired
     private JwtService jwtService;
 
+    // Evita connessioni SMTP reali durante i test
+    @MockBean
+    private JavaMailSender mailSender;
+
     private Tenant testTenant;
     private AppUser testUser;
     private static final String TEST_PASSWORD = "Password123!";
@@ -57,11 +63,9 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() {
-        // Clean database
         appUserRepository.deleteAll();
         tenantRepository.deleteAll();
 
-        // Create test tenant with unique slug
         uniqueSlug = "test-tenant-" + UUID.randomUUID();
         testTenant = Tenant.builder()
                 .name("Test Tenant")
@@ -71,23 +75,22 @@ class AuthControllerIT extends AbstractPostgresIT {
                 .build();
         testTenant = tenantRepository.save(testTenant);
 
-        // Create test user with BCrypt password
         testUser = AppUser.builder()
                 .tenant(testTenant)
                 .username("testowner")
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .email("testowner@example.com")
+                .emailVerified(true)
                 .build();
         testUser = appUserRepository.save(testUser);
     }
 
     @Test
     void shouldLoginSuccessfullyAndReturnToken() throws Exception {
-        // Given
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -101,10 +104,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn401OnInvalidPassword() throws Exception {
-        // Given
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", "WrongPassword");
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -113,10 +114,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn401OnNonExistentUser() throws Exception {
-        // Given
         LoginRequest request = new LoginRequest(uniqueSlug, "nonexistent", TEST_PASSWORD);
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -125,10 +124,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn401OnNonExistentTenant() throws Exception {
-        // Given
         LoginRequest request = new LoginRequest("nonexistent-tenant", "testowner", TEST_PASSWORD);
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -137,19 +134,19 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn401OnDisabledUser() throws Exception {
-        // Given - Create disabled user
         AppUser disabledUser = AppUser.builder()
                 .tenant(testTenant)
                 .username("disabled")
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_STAFF)
                 .enabled(false)
+                .email("disabled@example.com")
+                .emailVerified(true)
                 .build();
         appUserRepository.save(disabledUser);
 
         LoginRequest request = new LoginRequest(uniqueSlug, "disabled", TEST_PASSWORD);
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -157,10 +154,31 @@ class AuthControllerIT extends AbstractPostgresIT {
     }
 
     @Test
+    void shouldReturn403WhenEmailNotVerified() throws Exception {
+        AppUser unverifiedUser = AppUser.builder()
+                .tenant(testTenant)
+                .username("unverified")
+                .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
+                .role(Role.TENANT_STAFF)
+                .enabled(true)
+                .email("unverified@example.com")
+                .emailVerified(false)
+                .build();
+        appUserRepository.save(unverifiedUser);
+
+        LoginRequest request = new LoginRequest(uniqueSlug, "unverified", TEST_PASSWORD);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("Email non verificata")));
+    }
+
+    @Test
     void shouldLoginSuccessfullyAndTokenIsValidated() throws Exception {
-        // Given - Get token through login
         LoginRequest loginRequest = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
-        String loginResponse = mockMvc.perform(post("/auth/login")
+        String loginResponseStr = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
@@ -168,10 +186,9 @@ class AuthControllerIT extends AbstractPostgresIT {
                 .getResponse()
                 .getContentAsString();
 
-        LoginResponse response = objectMapper.readValue(loginResponse, LoginResponse.class);
+        LoginResponse response = objectMapper.readValue(loginResponseStr, LoginResponse.class);
         String token = response.getToken();
 
-        // Then - Verify token is valid and contains correct claims
         Claims claims = jwtService.validateAndExtractClaims(token);
         assertNotNull(claims);
         assertEquals("testowner", claims.get("username"));
@@ -180,22 +197,14 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn401OnMissingToken() throws Exception {
-        // Given - A protected endpoint that requires authentication
-        // Note: Since all endpoints except /auth/** and /health require auth,
-        // we'd need a custom endpoint to test this properly
-        // For now, verify that accessing a non-existent protected endpoint without token fails
-        
-        // When/Then
         mockMvc.perform(get("/some-protected-endpoint"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void shouldReturn401OnInvalidToken() throws Exception {
-        // Given
         String invalidToken = "invalid.jwt.token";
 
-        // When/Then
         mockMvc.perform(get("/some-protected-endpoint")
                         .header("Authorization", "Bearer " + invalidToken))
                 .andExpect(status().isUnauthorized());
@@ -203,10 +212,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldReturn400OnMissingLoginFields() throws Exception {
-        // Given - Request with empty tenantSlug
         String invalidRequest = "{\"tenantSlug\":\"\",\"username\":\"test\",\"password\":\"test\"}";
 
-        // When/Then
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
@@ -215,10 +222,8 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldAllowAnonymousAccessToLoginEndpoint() throws Exception {
-        // Given - Valid login request WITHOUT Authorization header
         LoginRequest request = new LoginRequest(uniqueSlug, "testowner", TEST_PASSWORD);
 
-        // When/Then - Should NOT return 401 for missing token, should process login
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -228,11 +233,23 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Test
     void shouldRequireAuthenticationForProtectedEndpoints() throws Exception {
-        // Given - No Authorization header
-
-        // When/Then - Protected endpoint should return 401
         mockMvc.perform(get("/customers")
                         .header("X-Tenant-Slug", uniqueSlug))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldRegisterAndReturnPendingVerificationResponse() throws Exception {
+        RegisterRequest request = new RegisterRequest(
+                "Nuovo Centro", "PENSIONE", "nuovo-centro-" + UUID.randomUUID(),
+                "nuovoowner", "Password123!", "nuovoowner@example.com"
+        );
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message").isNotEmpty())
+                .andExpect(jsonPath("$.email").value("nuovoowner@example.com"));
     }
 }

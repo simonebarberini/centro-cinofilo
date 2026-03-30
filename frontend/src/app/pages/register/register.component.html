@@ -75,6 +75,26 @@
         </div>
 
         <div class="form-control w-full">
+          <label class="label" for="email">
+            <span class="label-text font-medium">Email</span>
+          </label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="la tua email"
+            autocomplete="email"
+            class="input input-bordered w-full"
+            [class.input-error]="emailField.touched && emailField.invalid"
+          />
+          @if (emailField.touched && emailField.errors?.['email']) {
+            <label class="label">
+              <span class="label-text-alt text-error">Inserisci un indirizzo email valido</span>
+            </label>
+          }
+        </div>
+
+        <div class="form-control w-full">
           <label class="label" for="password">
             <span class="label-text font-medium">Password</span>
             <span class="label-text-alt text-base-content/50">minimo 8 caratteri</span>

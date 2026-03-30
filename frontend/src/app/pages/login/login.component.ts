@@ -14,6 +14,7 @@ export class LoginComponent {
   form: FormGroup;
   errorMessage = '';
   loading = false;
+  showResendLink = false;
 
   constructor(
     private fb: FormBuilder,
@@ -32,6 +33,7 @@ export class LoginComponent {
 
     this.loading = true;
     this.errorMessage = '';
+    this.showResendLink = false;
 
     const { tenantSlug, username, password } = this.form.value;
 
@@ -43,6 +45,9 @@ export class LoginComponent {
         this.loading = false;
         if (err.status === 401) {
           this.errorMessage = 'Credenziali non valide';
+        } else if (err.status === 403) {
+          this.errorMessage = 'Email non verificata. Controlla la tua casella di posta.';
+          this.showResendLink = true;
         } else {
           this.errorMessage = 'Errore di connessione al server';
         }

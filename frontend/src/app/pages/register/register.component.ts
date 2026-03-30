@@ -46,6 +46,7 @@ export class RegisterComponent {
       tenantType: ['', Validators.required],
       tenantSlug: ['', [Validators.required, Validators.maxLength(100), slugValidator]],
       username: ['', [Validators.required, Validators.maxLength(100)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', Validators.required]
     }, { validators: passwordMatchValidator });
@@ -60,6 +61,7 @@ export class RegisterComponent {
   }
 
   get slugField() { return this.form.get('tenantSlug')!; }
+  get emailField() { return this.form.get('email')!; }
   get passwordField() { return this.form.get('password')!; }
 
   onSubmit(): void {
@@ -68,11 +70,11 @@ export class RegisterComponent {
     this.loading = true;
     this.errorMessage = '';
 
-    const { tenantName, tenantType, tenantSlug, username, password } = this.form.value;
+    const { tenantName, tenantType, tenantSlug, username, email, password } = this.form.value;
 
-    this.auth.register({ tenantName, tenantType, tenantSlug, username, password }).subscribe({
-      next: () => {
-        this.router.navigate(['/calendar']);
+    this.auth.register({ tenantName, tenantType, tenantSlug, username, email, password }).subscribe({
+      next: (res) => {
+        this.router.navigate(['/register-success'], { state: { email: res.email } });
       },
       error: (err) => {
         this.loading = false;

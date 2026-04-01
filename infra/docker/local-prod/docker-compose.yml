@@ -1,0 +1,117 @@
+# ── Ambiente local-prod ───────────────────────────────────────────────────────
+# Stack completo (DB + Backend + Frontend + MailHog) in un unico comando.
+# Pensato per testare in locale con la stessa configurazione di produzione.
+#
+# Setup iniziale:
+#   cp .env.local-prod.example .env.local-prod
+#   # (modifica .env.local-prod se necessario)
+#
+# Avvio:
+#   docker compose --env-file .env.local-prod -f infra/docker/local-prod/docker-compose.yml up -d --build
+#
+# Stop:
+#   docker compose --env-file .env.local-prod -f infra/docker/local-prod/docker-compose.yml down
+#
+# Stop + rimozione volumi (reset DB):
+#   docker compose --env-file .env.local-prod -f infra/docker/local-prod/docker-compose.yml down -v
+#
+# Servizi esposti sull'host:
+#   http://localhost           → Frontend (Angular)
+#   http://localhost:8025      → MailHog Web UI (email in arrivo)
+#   localhost:5433             → PostgreSQL (DBeaver / psql)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinofilo-local-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cinofilo}
+      POSTGRES_USER: ${POSTGRES_USER:-cinofilo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cinofilo}
+    volumes:
+      - postgres_local_prod_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 per evitare conflitti con eventuali postgres locali
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cinofilo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  # ── MailHog (SMTP mock) ────────────────────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: cinofilo-mailhog
+    ports:
+      - "8025:8025"   # Web UI per leggere le email
+    expose:
+      - "1025"        # SMTP usato dal backend, non esposto all'host
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  # ── Backend (Spring Boot) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../../../backend
+      dockerfile: Dockerfile
+    container_name: cinofilo-local-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-cinofilo}
+      DB_USER: ${POSTGRES_USER:-cinofilo}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-cinofilo}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
+      # Mail → MailHog (nessuna auth, nessun TLS)
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_FROM: ${MAIL_FROM:-noreply@centro-cinofilo.local}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      # Override impostazioni SMTP del profilo prod per MailHog
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "false"
+    expose:
+      - "8080"        # Raggiungibile solo da frontend via rete interna
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  # ── Frontend (Angular + Nginx) ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../../../frontend
+      dockerfile: Dockerfile
+    container_name: cinofilo-local-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - app-net
+    restart: unless-stopped
+
+volumes:
+  postgres_local_prod_data:
+    driver: local
+
+networks:
+  app-net:
+    driver: bridge

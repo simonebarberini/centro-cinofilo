@@ -13,10 +13,16 @@ centro-cinofilo/
 └── docs/             # Documentazione del progetto
 ```
 
+## Documentazione
+
+| Documento | Contenuto |
+|-----------|-----------|
+| [docs/docker-guide.md](docs/docker-guide.md) | Spiegazione completa di Docker, Dockerfile, Docker Compose e come sono usati nel progetto |
+
 ## Prerequisiti
 
 - Java 21+
-- Maven 3.9+
+- Maven 3.9+ (su macOS: incluso in IntelliJ IDEA CE sotto `Contents/plugins/maven/lib/maven3/bin/mvn`)
 - Node.js 22+ e npm
 - Docker e Docker Compose v2+
 - Git
@@ -203,16 +209,20 @@ docker stop mailhog && docker rm mailhog
 In un terminale separato:
 
 ```bash
-# bash / Git Bash
 cd backend
+
+# Se mvn è nel PATH
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Su macOS con IntelliJ IDEA CE (mvn non nel PATH di default)
+"/Applications/IntelliJ IDEA CE.app/Contents/plugins/maven/lib/maven3/bin/mvn" \
+  spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-```powershell
-# PowerShell — le virgolette sono necessarie
-cd backend
-mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
-```
+> Aggiungi l'alias una volta sola per non riscriverlo:
+> ```bash
+> echo 'alias mvn="/Applications/IntelliJ IDEA CE.app/Contents/plugins/maven/lib/maven3/bin/mvn"' >> ~/.zshrc && source ~/.zshrc
+> ```
 
 Al primo avvio Maven scarica le dipendenze (~1-2 minuti). Flyway esegue automaticamente le migration e il `DevDataSeeder` inserisce un utente demo.
 
@@ -236,7 +246,7 @@ In un altro terminale separato:
 ```bash
 cd frontend
 npm install        # solo la prima volta
-npm run dev
+npm start
 ```
 
 Il proxy di sviluppo (`proxy.conf.json`) instrada automaticamente `/api/*` verso `http://localhost:8080`.
@@ -280,6 +290,60 @@ docker stop mailhog && docker rm mailhog
 # Pulire build Maven
 cd backend && mvn clean
 ```
+
+## Avvio in locale (produzione simulata)
+
+Vuoi testare l'app esattamente come si comporta in produzione, senza avviare nulla manualmente? Un solo comando avvia **DB + Backend + Frontend + MailHog** tutti containerizzati.
+
+> Per capire come funzionano i Dockerfile e il compose, leggi [docs/docker-guide.md](docs/docker-guide.md).
+
+### 1. Setup iniziale (una volta sola)
+
+```bash
+cp .env.local-prod.example .env.local-prod
+# Il file contiene già valori funzionanti — nessuna modifica necessaria per iniziare
+```
+
+### 2. Avvia tutto
+
+```bash
+docker compose \
+  --env-file .env.local-prod \
+  -f infra/docker/local-prod/docker-compose.yml \
+  up -d --build
+```
+
+Il primo avvio richiede qualche minuto perché Docker compila il backend (Maven) e il frontend (Angular). Le volte successive senza `--build` parte in pochi secondi.
+
+### 3. Servizi disponibili
+
+| Servizio | URL | Note |
+|----------|-----|------|
+| **App** | http://localhost | Frontend Angular |
+| **MailHog** | http://localhost:8025 | Leggi le email inviate dal backend |
+| **PostgreSQL** | `localhost:5433` | Connetti con DBeaver (user/pass: `cinofilo`) |
+
+> La porta del DB è **5433** (non 5432) per evitare conflitti con un eventuale postgres locale.
+
+### 4. Comandi utili
+
+```bash
+# Vedi i log in tempo reale
+docker compose -f infra/docker/local-prod/docker-compose.yml logs -f
+
+# Ricompila solo il backend dopo una modifica al codice
+docker compose --env-file .env.local-prod \
+  -f infra/docker/local-prod/docker-compose.yml \
+  up -d --build backend
+
+# Ferma tutto (i dati del DB rimangono)
+docker compose -f infra/docker/local-prod/docker-compose.yml down
+
+# Ferma tutto e cancella il DB (reset completo)
+docker compose -f infra/docker/local-prod/docker-compose.yml down -v
+```
+
+---
 
 ## Convenzioni di Sviluppo
 

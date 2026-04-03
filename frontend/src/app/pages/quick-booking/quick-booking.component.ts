@@ -145,7 +145,7 @@ export class QuickBookingComponent implements OnInit, OnDestroy {
 
   private applyCustomerValidators(): void {
     const existingFields = ['customerId'];
-    const newFields = ['customerFirstName', 'customerLastName'];
+    const newFields = ['customerFirstName'];
     const optionalNewFields = ['customerEmail', 'customerPhone'];
 
     if (this.customerMode === 'existing') {

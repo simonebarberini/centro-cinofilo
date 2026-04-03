@@ -71,12 +71,9 @@
               }
             </div>
             <div class="form-control">
-              <label class="label"><span class="label-text">Cognome *</span></label>
+              <label class="label"><span class="label-text">Cognome</span></label>
               <input type="text" formControlName="customerLastName" class="input input-bordered"
-                     [class.input-error]="isInvalid('customerLastName')" placeholder="Rossi" />
-              @if (isInvalid('customerLastName')) {
-                <label class="label"><span class="label-text-alt text-error">Obbligatorio</span></label>
-              }
+                     placeholder="Rossi" />
             </div>
             <div class="form-control">
               <label class="label"><span class="label-text">Email</span></label>

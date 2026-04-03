@@ -31,12 +31,9 @@ import { Customer, CreateCustomerRequest } from '../../core/models/customer.mode
 
             <!-- Last Name -->
             <div class="form-control">
-              <label class="label"><span class="label-text">Cognome *</span></label>
+              <label class="label"><span class="label-text">Cognome</span></label>
               <input type="text" formControlName="lastName" class="input input-bordered"
-                     [class.input-error]="isInvalid('lastName')" placeholder="Rossi" />
-              <label class="label" *ngIf="isInvalid('lastName')">
-                <span class="label-text-alt text-error">Il cognome è obbligatorio</span>
-              </label>
+                     placeholder="Rossi" />
             </div>
           </div>
 
@@ -97,7 +94,7 @@ export class CustomerFormComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       firstName: [this.customer?.firstName ?? '', Validators.required],
-      lastName: [this.customer?.lastName ?? '', Validators.required],
+      lastName: [this.customer?.lastName ?? ''],
       email: [this.customer?.email ?? '', Validators.email],
       phone: [this.customer?.phone ?? ''],
       notes: [this.customer?.notes ?? ''],

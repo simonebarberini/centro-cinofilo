@@ -16,7 +16,6 @@ public class CreateCustomerRequest {
     @NotBlank(message = "First name is required")
     private String firstName;
 
-    @NotBlank(message = "Last name is required")
     private String lastName;
 
     @Email(message = "Email must be valid")

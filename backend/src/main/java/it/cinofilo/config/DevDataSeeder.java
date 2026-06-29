@@ -65,7 +65,7 @@ public class DevDataSeeder {
                     demoTenant.getName());
 
             log.info("🎉 DEV data seeding completed successfully!");
-            log.info("📝 Login credentials - username: owner, password: owner123!");
+            log.info("📝 Dev credentials: username=owner — password is defined in DevDataSeeder.java");
         };
     }
 }

@@ -1,5 +1,6 @@
 package it.cinofilo.auth;
 
+import it.cinofilo.config.JwtProperties;
 import it.cinofilo.security.JwtService;
 import it.cinofilo.tenancy.Role;
 import it.cinofilo.tenancy.Tenant;
@@ -7,7 +8,6 @@ import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUser;
 import it.cinofilo.users.AppUserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,9 +26,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailTokenRepository emailTokenRepository;
     private final EmailService emailService;
-
-    @Value("${jwt.expiration-ms:28800000}")
-    private long expirationMs;
+    private final JwtProperties jwtProperties;
 
     public LoginResponse login(LoginRequest request) {
         Tenant tenant = tenantRepository.findBySlug(request.getTenantSlug())
@@ -56,7 +54,7 @@ public class AuthService {
                 user.getUsername()
         );
 
-        return new LoginResponse(token, expirationMs / 1000);
+        return new LoginResponse(token, jwtProperties.getExpirationMs() / 1000);
     }
 
     @Transactional

@@ -3,6 +3,8 @@ package it.cinofilo.security;
 import it.cinofilo.AbstractPostgresIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
@@ -21,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  * <p>This test wires the REAL production beans, so any future refactoring that
  * makes the signing and verification algorithms diverge will fail here.
  */
+@SpringBootTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class JwtDecoderRoundTripIT extends AbstractPostgresIT {
 
     @Autowired

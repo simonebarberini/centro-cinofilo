@@ -29,11 +29,11 @@ export class RegisterComponent {
   loading = false;
 
   readonly tenantTypes = [
-    'Centro addestramento',
-    'Allevamento',
-    'Pensione',
-    'Veterinario',
-    'Altro'
+//     'Centro addestramento',
+//     'Allevamento',
+    'Pensione'
+//     'Veterinario',
+//     'Altro'
   ];
 
   constructor(

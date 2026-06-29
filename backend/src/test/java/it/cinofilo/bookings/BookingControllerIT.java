@@ -96,6 +96,7 @@ class BookingControllerIT extends AbstractPostgresIT {
         userA.setPasswordHash(passwordEncoder.encode("password"));
         userA.setRole(Role.TENANT_OWNER);
         userA.setTenant(tenantA);
+        userA.setEmailVerified(true);
         appUserRepository.save(userA);
 
         // Setup Tenant B with capacity of 1 box
@@ -112,6 +113,7 @@ class BookingControllerIT extends AbstractPostgresIT {
         userB.setPasswordHash(passwordEncoder.encode("password"));
         userB.setRole(Role.TENANT_OWNER);
         userB.setTenant(tenantB);
+        userB.setEmailVerified(true);
         appUserRepository.save(userB);
 
         // Login as Tenant A

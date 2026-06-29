@@ -92,6 +92,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userA);
 
@@ -120,6 +121,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userB);
 

@@ -81,6 +81,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         testUser = appUserRepository.save(testUser);
     }

@@ -60,6 +60,7 @@ class TenantSettingsControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode("password"))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(owner);
 
@@ -70,6 +71,7 @@ class TenantSettingsControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode("password"))
                 .role(Role.TENANT_STAFF)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(staff);
 

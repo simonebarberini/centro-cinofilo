@@ -91,6 +91,7 @@ class CalendarControllerIT extends AbstractPostgresIT {
         user.setPasswordHash(passwordEncoder.encode("password"));
         user.setRole(Role.TENANT_OWNER);
         user.setTenant(tenant);
+        user.setEmailVerified(true);
         appUserRepository.save(user);
 
         // Login

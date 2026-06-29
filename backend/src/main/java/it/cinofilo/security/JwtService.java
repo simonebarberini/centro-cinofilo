@@ -2,9 +2,7 @@ package it.cinofilo.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import it.cinofilo.config.JwtProperties;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -13,17 +11,25 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
+import io.jsonwebtoken.security.Keys;
+
 @Service
 public class JwtService {
 
     private final SecretKey secretKey;
     private final long expirationMs;
 
-    public JwtService(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration-ms:28800000}") long expirationMs) { // Default 8 ore
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationMs = expirationMs;
+    public JwtService(JwtProperties jwtProperties) {
+        byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException(
+                "JWT secret must be at least 32 bytes (256 bits) for HS256. " +
+                "Current length: " + keyBytes.length + " bytes. " +
+                "Set a stronger JWT_SECRET environment variable."
+            );
+        }
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        this.expirationMs = jwtProperties.getExpirationMs();
     }
 
     public String generateToken(UUID userId, UUID tenantId, String role, String username) {
@@ -37,7 +43,7 @@ public class JwtService {
                 .claim("username", username)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .signWith(secretKey)
                 .compact();
     }
 

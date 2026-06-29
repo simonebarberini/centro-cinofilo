@@ -34,10 +34,14 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
-# JWT Configuration for DEV
+# JWT — dev-only secret. NOT for production use.
+# Must be at least 32 bytes. Change this before any real deployment.
 jwt:
-  secret: dev-secret-key-minimum-256-bits-for-hs256-algorithm-change-in-production
+  secret: dev-only-secret-key-for-local-development-not-for-production
   expiration-ms: 28800000
 
 app:
   base-url: http://localhost:4200
+  cors:
+    allowed-origins:
+      - http://localhost:4200

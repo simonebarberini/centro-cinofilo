@@ -1,5 +1,13 @@
-# ── Production profile ────────────────────────────────
-# Inherits from application.yml, overrides below.
+# ── Production profile ────────────────────────────────────────────────────────
+# Inherits from application.yml. All sensitive values must come from env vars.
+#
+# Required env vars in production:
+#   JWT_SECRET              — at least 32 bytes, generated with: openssl rand -hex 32
+#   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+#   MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM
+#   APP_BASE_URL            — public URL of the frontend (e.g. https://app.centrocinofilo.it)
+#   CORS_ALLOWED_ORIGINS    — comma-separated list of allowed frontend origins
+# ──────────────────────────────────────────────────────────────────────────────
 
 spring:
   jpa:
@@ -29,6 +37,5 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 app:
-  base-url: ${APP_BASE_URL}
   mail:
     from: ${MAIL_FROM}

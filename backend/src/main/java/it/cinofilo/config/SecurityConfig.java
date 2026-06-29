@@ -4,7 +4,6 @@ import it.cinofilo.security.JwtAuthenticationConverter;
 import it.cinofilo.security.JwtService;
 import it.cinofilo.security.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -35,21 +34,19 @@ public class SecurityConfig {
 
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
     private final JwtService jwtService;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final JwtProperties jwtProperties;
+    private final CorsProperties corsProperties;
 
     /**
      * Security filter chain for public endpoints.
      * Order(1) ensures this chain is evaluated first for matching requests.
-     * MVC matchers automatically handle context-path, so use paths WITHOUT /api prefix.
      */
     @Bean
     @Order(1)
     public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatchers(matchers -> matchers
-                .requestMatchers("/auth/**", "/actuator/**", "/health")
+                .requestMatchers("/auth/**", "/actuator/health", "/health")
             )
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -59,7 +56,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             );
-        
+
         return http.build();
     }
 
@@ -85,14 +82,14 @@ public class SecurityConfig {
                 )
             )
             .addFilterAfter(new TenantContextFilter(jwtService), BearerTokenAuthenticationFilter.class);
-        
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOrigin("http://localhost:4200");
+        config.setAllowedOrigins(corsProperties.getAllowedOrigins());
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
         config.setAllowCredentials(true);
@@ -105,7 +102,7 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         SecretKey secretKey = new SecretKeySpec(
-            jwtSecret.getBytes(StandardCharsets.UTF_8),
+            jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8),
             "HmacSHA256"
         );
         return NimbusJwtDecoder.withSecretKey(secretKey)
@@ -118,4 +115,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

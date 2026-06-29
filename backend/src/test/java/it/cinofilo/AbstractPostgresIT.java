@@ -27,9 +27,15 @@ public abstract class AbstractPostgresIT {
         registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
         registry.add("spring.datasource.username", postgresContainer::getUsername);
         registry.add("spring.datasource.password", postgresContainer::getPassword);
-        
-        // Abilita Flyway nei test
+
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.flyway.clean-disabled", () -> "false");
+
+        // JWT secret required — application refuses to start without it.
+        // This value is only used in tests; it must be at least 32 bytes.
+        registry.add("jwt.secret", () -> "test-only-secret-key-for-integration-tests-only");
+
+        // CORS — test suite calls the API directly, any origin is acceptable.
+        registry.add("app.cors.allowed-origins", () -> "http://localhost:4200");
     }
 }

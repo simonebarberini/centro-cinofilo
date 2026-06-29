@@ -15,9 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -51,10 +49,6 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @Autowired
     private JwtService jwtService;
-
-    // Evita connessioni SMTP reali durante i test
-    @MockBean
-    private JavaMailSender mailSender;
 
     private Tenant testTenant;
     private AppUser testUser;

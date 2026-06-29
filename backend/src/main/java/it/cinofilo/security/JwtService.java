@@ -6,12 +6,11 @@ import it.cinofilo.config.JwtProperties;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
-
-import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
@@ -21,14 +20,17 @@ public class JwtService {
 
     public JwtService(JwtProperties jwtProperties) {
         byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
+        if (keyBytes.length < 64) {
             throw new IllegalArgumentException(
-                "JWT secret must be at least 32 bytes (256 bits) for HS256. " +
+                "JWT secret must be at least 64 bytes (512 bits) for HS512. " +
                 "Current length: " + keyBytes.length + " bytes. " +
                 "Set a stronger JWT_SECRET environment variable."
             );
         }
-        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+        // The signing algorithm is an explicit application choice (HS512); it is
+        // NEVER derived from the key length. The key is bound to HmacSHA512 to
+        // match the JwtDecoder configured in SecurityConfig.
+        this.secretKey = new SecretKeySpec(keyBytes, "HmacSHA512");
         this.expirationMs = jwtProperties.getExpirationMs();
     }
 
@@ -43,7 +45,7 @@ public class JwtService {
                 .claim("username", username)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .signWith(secretKey)
+                .signWith(secretKey, Jwts.SIG.HS512)
                 .compact();
     }
 

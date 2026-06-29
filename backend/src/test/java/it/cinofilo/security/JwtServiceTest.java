@@ -3,14 +3,15 @@ package it.cinofilo.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import it.cinofilo.config.JwtProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 
@@ -21,9 +22,9 @@ class JwtServiceTest {
 
     private JwtService jwtService;
 
-    // 64-char string = 64 bytes > 32 bytes minimum required for HS256.
+    // >= 64 bytes — the minimum required for HS512.
     private static final String VALID_SECRET =
-        "valid-test-secret-key-that-is-at-least-32-bytes-long-for-hs256";
+        "valid-test-secret-key-that-is-at-least-64-bytes-long-for-the-hs512-algo";
     private static final long EXPIRATION_MS = 3600000L;
 
     @BeforeEach
@@ -37,28 +38,29 @@ class JwtServiceTest {
     void shouldRejectBlankSecret() {
         assertThatThrownBy(() -> new JwtService(propertiesWith("", EXPIRATION_MS)))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("at least 32 bytes");
+            .hasMessageContaining("at least 64 bytes");
     }
 
     @Test
-    void shouldRejectSecretShorterThan32Bytes() {
-        // 15 chars = 15 bytes — below the 32-byte minimum
+    void shouldRejectSecretShorterThan64Bytes() {
+        // 15 chars = 15 bytes — below the 64-byte minimum
         assertThatThrownBy(() -> new JwtService(propertiesWith("tooshort1234567", EXPIRATION_MS)))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("at least 32 bytes")
+            .hasMessageContaining("at least 64 bytes")
             .hasMessageContaining("15 bytes");
     }
 
     @Test
-    void shouldAcceptSecretOfExactly32Bytes() {
-        // 32 ASCII chars = 32 bytes — exactly at the minimum
+    void shouldRejectSecretOfExactly32Bytes() {
+        // 32 bytes was valid for HS256 but is below the 64-byte HS512 minimum.
+        // This is the fail-fast guard that blocks application startup.
         String exactly32 = "exactly-32-bytes-long-secret-key";
         assertThat(exactly32.getBytes(StandardCharsets.UTF_8)).hasSize(32);
 
-        JwtService service = new JwtService(propertiesWith(exactly32, EXPIRATION_MS));
-        UUID userId = UUID.randomUUID();
-        String token = service.generateToken(userId, UUID.randomUUID(), "TENANT_OWNER", "u");
-        assertThat(service.extractUserId(token)).isEqualTo(userId);
+        assertThatThrownBy(() -> new JwtService(propertiesWith(exactly32, EXPIRATION_MS)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("at least 64 bytes")
+            .hasMessageContaining("32 bytes");
     }
 
     // ── Token generation ──────────────────────────────────────────────────────
@@ -72,6 +74,19 @@ class JwtServiceTest {
 
         assertThat(token).isNotBlank();
         assertThat(token.split("\\.")).hasSize(3);
+    }
+
+    @Test
+    void shouldAlwaysSignWithHs512Algorithm() {
+        // Regression guard: the algorithm must be an explicit HS512 choice,
+        // independent of the secret length, so the decoder can always validate it.
+        String token = jwtService.generateToken(
+            UUID.randomUUID(), UUID.randomUUID(), "TENANT_OWNER", "testuser");
+
+        String headerJson = new String(
+            Base64.getUrlDecoder().decode(token.split("\\.")[0]), StandardCharsets.UTF_8);
+
+        assertThat(headerJson).contains("\"alg\":\"HS512\"");
     }
 
     @Test
@@ -108,7 +123,7 @@ class JwtServiceTest {
 
     @Test
     void shouldRejectExpiredToken() {
-        SecretKey key = Keys.hmacShaKeyFor(VALID_SECRET.getBytes(StandardCharsets.UTF_8));
+        SecretKey key = new SecretKeySpec(VALID_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
         String expiredToken = Jwts.builder()
             .subject(UUID.randomUUID().toString())
             .claim("tenantId", UUID.randomUUID().toString())
@@ -116,7 +131,7 @@ class JwtServiceTest {
             .claim("username", "test")
             .issuedAt(Date.from(Instant.now().minusSeconds(7200)))
             .expiration(Date.from(Instant.now().minusSeconds(3600)))
-            .signWith(key)
+            .signWith(key, Jwts.SIG.HS512)
             .compact();
 
         assertThatThrownBy(() -> jwtService.validateAndExtractClaims(expiredToken))

@@ -2,7 +2,7 @@
 # Inherits from application.yml. All sensitive values must come from env vars.
 #
 # Required env vars in production:
-#   JWT_SECRET              — at least 32 bytes, generated with: openssl rand -hex 32
+#   JWT_SECRET              — at least 64 bytes (512 bits) for HS512, generated with: openssl rand -hex 64
 #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 #   MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM
 #   APP_BASE_URL            — public URL of the frontend (e.g. https://app.centrocinofilo.it)

@@ -104,8 +104,8 @@ public abstract class AbstractPostgresIT {
         registry.add("spring.flyway.clean-disabled", () -> "false");
 
         // JWT secret required — application refuses to start without it.
-        // This value is only used in tests; it must be at least 32 bytes.
-        registry.add("jwt.secret", () -> "test-only-secret-key-for-integration-tests-only");
+        // This value is only used in tests; it must be at least 64 bytes (HS512).
+        registry.add("jwt.secret", () -> "test-only-secret-key-for-integration-tests-only-hs512-minimum-64bytes");
 
         // CORS — test suite calls the API directly, any origin is acceptable.
         registry.add("app.cors.allowed-origins", () -> "http://localhost:4200");

@@ -71,3 +71,66 @@ app:
     # Supports comma-separated values via env var: CORS_ALLOWED_ORIGINS=https://a.com,https://b.com
     # In production set CORS_ALLOWED_ORIGINS to the real frontend domain.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+# ── Rate limiting ──────────────────────────────────────────────────────────────
+# Set "enabled: false" to disable globally (e.g. in integration tests via DynamicPropertySource).
+# Limits are intentionally conservative for production. Tune per-policy as needed.
+# Dual-bucket pattern: requests are blocked if ANY bucket is exhausted.
+#   Bucket 1 (IP_TENANT)      — blocks concentrated attacks from one network on one tenant
+#   Bucket 2 (TENANT_USERNAME / TENANT_EMAIL) — blocks distributed attacks on one account
+rate-limit:
+  enabled: true
+  endpoint-policies:
+    "[/auth/login]": LOGIN
+    "[/auth/register]": REGISTER
+    "[/auth/forgot-password]": FORGOT_PASSWORD
+    "[/auth/resend-verification]": RESEND_VERIFICATION
+    "[/auth/reset-password]": RESET_PASSWORD
+
+  policies:
+    LOGIN:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 15
+        - key-type: TENANT_USERNAME
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 15
+
+    REGISTER:
+      buckets:
+        - key-type: IP
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+
+    FORGOT_PASSWORD:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+        - key-type: TENANT_EMAIL
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+
+    RESEND_VERIFICATION:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+        - key-type: TENANT_EMAIL
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+
+    RESET_PASSWORD:
+      buckets:
+        - key-type: IP
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 60

@@ -1,0 +1,2 @@
+- [Java 21 in Replit](java21-replit.md) — GraalVM 22.3 (Java 19) è in PATH per default; Java 21 richiede JAVA_HOME esplicito.
+- [Spring Boot map keys con slash](spring-boot-map-slash-keys.md) — path come `/auth/login` nelle @ConfigurationProperties Map richiedono bracket notation per non venire normalizzati.

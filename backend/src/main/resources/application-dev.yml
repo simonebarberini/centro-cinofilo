@@ -45,3 +45,51 @@ app:
   cors:
     allowed-origins:
       - http://localhost:4200
+
+# Dev: very generous limits so development is never interrupted by rate limiting.
+# Production limits are defined in application.yml.
+rate-limit:
+  enabled: true
+  policies:
+    LOGIN:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 500
+          refill-tokens: 500
+          refill-period-minutes: 1
+        - key-type: TENANT_USERNAME
+          capacity: 500
+          refill-tokens: 500
+          refill-period-minutes: 1
+    REGISTER:
+      buckets:
+        - key-type: IP
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    FORGOT_PASSWORD:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+        - key-type: TENANT_EMAIL
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    RESEND_VERIFICATION:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+        - key-type: TENANT_EMAIL
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    RESET_PASSWORD:
+      buckets:
+        - key-type: IP
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1

@@ -37,5 +37,9 @@ public abstract class AbstractPostgresIT {
 
         // CORS — test suite calls the API directly, any origin is acceptable.
         registry.add("app.cors.allowed-origins", () -> "http://localhost:4200");
+
+        // Rate limiting — disabled in integration tests to prevent bucket state
+        // from interfering between test methods (shared in-memory buckets).
+        registry.add("rate-limit.enabled", () -> "false");
     }
 }

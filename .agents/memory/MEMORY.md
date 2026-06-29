@@ -1,1 +1,2 @@
 - [JWT algorithm pinning](jwt-algorithm-pinning.md) — sign & verify must hard-pin the SAME explicit HMAC alg; JJWT derives it from key byte-length, which silently diverges from a fixed decoder.
+- [HTTP security headers](security-headers.md) — Nginx owns SPA headers, Spring owns /api headers (no overlap); HSTS is default-ON in Spring so must be explicitly disabled to defer it; CSP/HSTS deferred until deploy/TLS/integrations decided; `/api/` needs `^~`.

@@ -21,6 +21,10 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -50,6 +54,7 @@ public class SecurityConfig {
             )
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
+            .headers(securityHeaders())
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll()
             )
@@ -69,6 +74,7 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
+            .headers(securityHeaders())
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().authenticated()
             )
@@ -84,6 +90,34 @@ public class SecurityConfig {
             .addFilterAfter(new TenantContextFilter(jwtService), BearerTokenAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Security headers applied to ALL API responses (both filter chains).
+     *
+     * <p>Ownership split: Spring owns the headers for {@code /api} responses;
+     * Nginx owns the headers for the Angular SPA (HTML shell + static assets).
+     *
+     * <p>Content-Security-Policy and Strict-Transport-Security are deliberately
+     * deferred: HSTS is disabled here on purpose and will be enabled together
+     * with CSP once the deploy architecture and TLS termination are finalized.
+     */
+    private Customizer<HeadersConfigurer<HttpSecurity>> securityHeaders() {
+        return headers -> headers
+            // X-Content-Type-Options: nosniff — block MIME-type sniffing.
+            .contentTypeOptions(Customizer.withDefaults())
+            // X-Frame-Options: DENY — API responses must never be framed.
+            .frameOptions(frame -> frame.deny())
+            // Referrer-Policy: no-referrer — API responses never need to leak a referrer.
+            .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+            // Cache-Control: no-cache, no-store, must-revalidate (+ Pragma/Expires) —
+            // API payloads may contain tenant data and tokens; never cache them.
+            .cacheControl(Customizer.withDefaults())
+            // Strict-Transport-Security intentionally OFF for now (deferred with CSP).
+            .httpStrictTransportSecurity(hsts -> hsts.disable())
+            // Permissions-Policy: disable powerful browser features the app never uses.
+            .addHeaderWriter(new StaticHeadersWriter(
+                "Permissions-Policy", "geolocation=(), camera=(), microphone=()"));
     }
 
     @Bean

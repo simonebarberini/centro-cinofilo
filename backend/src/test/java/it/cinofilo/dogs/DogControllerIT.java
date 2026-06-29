@@ -70,11 +70,7 @@ class DogControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean database - must delete in order due to foreign key constraints
-        dogRepository.deleteAll();
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Create Tenant A
         String slugA = "tenant-a-" + UUID.randomUUID();

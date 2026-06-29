@@ -57,9 +57,6 @@ class AuthControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() {
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
-
         uniqueSlug = "test-tenant-" + UUID.randomUUID();
         testTenant = Tenant.builder()
                 .name("Test Tenant")

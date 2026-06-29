@@ -1,5 +1,13 @@
 package it.cinofilo;
 
+import it.cinofilo.auth.EmailTokenRepository;
+import it.cinofilo.bookings.BookingRepository;
+import it.cinofilo.customer.CustomerRepository;
+import it.cinofilo.dogs.DogRepository;
+import it.cinofilo.tenancy.TenantRepository;
+import it.cinofilo.users.AppUserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -9,7 +17,19 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
  * Base class for integration tests using Testcontainers PostgreSQL.
- * Provides a shared PostgreSQL container for all integration tests.
+ *
+ * <p>The PostgreSQL container is {@code static}, so it is shared by every
+ * integration test in the suite regardless of which Spring context is active.
+ * Because the {@code @SpringBootTest} tests commit their data (they are not
+ * transactional), rows written by one test class are visible to the next.
+ * To keep every test deterministic, this base class wipes all tables before
+ * each test in foreign-key-safe order — this is the single, uniform teardown
+ * strategy for the whole suite, so individual tests must NOT clean up
+ * themselves.
+ *
+ * <p><strong>The integration tests must run sequentially.</strong> A shared
+ * static database combined with per-test wiping is not safe under JUnit/Maven
+ * parallel execution, where one test could wipe another test's data mid-run.
  */
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public abstract class AbstractPostgresIT {
@@ -22,6 +42,47 @@ public abstract class AbstractPostgresIT {
      */
     @MockBean
     protected JavaMailSender mailSender;
+
+    @Autowired(required = false)
+    private BookingRepository bookingRepository;
+
+    @Autowired(required = false)
+    private DogRepository dogRepository;
+
+    @Autowired(required = false)
+    private CustomerRepository customerRepository;
+
+    @Autowired(required = false)
+    private EmailTokenRepository emailTokenRepository;
+
+    @Autowired(required = false)
+    private AppUserRepository appUserRepository;
+
+    @Autowired(required = false)
+    private TenantRepository tenantRepository;
+
+    /**
+     * Wipes all domain tables before each test, in child-to-parent order so that
+     * every foreign key is satisfied:
+     * email_token → booking → dog → customer → app_user → tenant.
+     *
+     * <p>Repositories are injected with {@code required = false} because slice
+     * tests (e.g. {@code @DataJpaTest}) may not expose every repository bean;
+     * each delete is guarded so the cleanup degrades gracefully.
+     *
+     * <p>Runs as a superclass {@code @BeforeEach}, which JUnit 5 guarantees to
+     * execute before each subclass {@code @BeforeEach}, so subclasses always
+     * start from an empty database.
+     */
+    @BeforeEach
+    protected void cleanDatabase() {
+        if (emailTokenRepository != null) emailTokenRepository.deleteAllInBatch();
+        if (bookingRepository != null) bookingRepository.deleteAllInBatch();
+        if (dogRepository != null) dogRepository.deleteAllInBatch();
+        if (customerRepository != null) customerRepository.deleteAllInBatch();
+        if (appUserRepository != null) appUserRepository.deleteAllInBatch();
+        if (tenantRepository != null) tenantRepository.deleteAllInBatch();
+    }
 
     protected static final PostgreSQLContainer<?> postgresContainer;
 

@@ -1,2 +1,4 @@
-- [Java 21 in Replit](java21-replit.md) — GraalVM 22.3 (Java 19) è in PATH per default; Java 21 richiede JAVA_HOME esplicito.
-- [Spring Boot map keys con slash](spring-boot-map-slash-keys.md) — path come `/auth/login` nelle @ConfigurationProperties Map richiedono bracket notation per non venire normalizzati.
+# Memory index
+
+- [Testcontainers in Replit sandbox](replit-testcontainers-sandbox.md) — IT suite can't be run reliably here (Ryuk sysfs block + OOM during context load); verify in user env/CI.
+- [Integration-test DB cleanup](integration-test-cleanup.md) — shared static Postgres + non-tx @SpringBootTest commits leak rows; use one FK-safe teardown in the base class, run ITs sequentially.

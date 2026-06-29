@@ -59,10 +59,7 @@ class TenantContextIntegrationTest extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() {
-        // Clean database - must delete in order due to foreign key constraints
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Create test tenant with unique slug
         uniqueSlug = "test-tenant-" + UUID.randomUUID();

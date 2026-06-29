@@ -75,12 +75,7 @@ class BookingControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean up before each test
-        bookingRepository.deleteAll();
-        dogRepository.deleteAll();
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Setup Tenant A with capacity of 2 boxes
         Tenant tenantA = new Tenant();

@@ -1,0 +1,132 @@
+Ottimo.
+
+Considero conclusa la fase di hardening del core dell'applicazione.
+
+Da questo momento vorrei cambiare completamente prospettiva.
+
+Non stiamo più ragionando come sviluppatori che implementano feature.
+
+Stiamo progettando un prodotto SaaS destinato ad essere venduto.
+
+## Prima fase
+
+Prima ancora di parlare di feature flags, voglio che analizzi il dominio del prodotto.
+
+Rispondi prima a questa domanda:
+
+**Che cosa venderà realmente Centro Cinofilo?**
+
+Non limitarti alle funzionalità attuali.
+
+Ragiona come un Product Architect.
+
+Analizza:
+
+* quali potrebbero essere i diversi tipi di clienti;
+* quali funzionalità avranno realmente valore commerciale;
+* quali funzionalità dovrebbero appartenere al core del prodotto;
+* quali invece sono candidate a diventare moduli opzionali;
+* quali potrebbero essere servizi premium;
+* quali potrebbero essere funzionalità Enterprise;
+* quali potrebbero essere future integrazioni a pagamento.
+
+Solo dopo questa analisi passa alla progettazione tecnica.
+
+## Seconda fase
+
+Progetta un sistema di monetizzazione completamente guidato dalla configurazione.
+
+Vorrei che comprendesse:
+
+### Feature Flags
+
+* feature abilitate/disabilitate per tenant;
+* rollout graduali;
+* beta feature;
+* override manuali;
+* dipendenze tra feature;
+* cache;
+* audit;
+* valutazione runtime.
+
+### Piani commerciali
+
+Vorrei che i piani non fossero hardcodati.
+
+Free, Starter, Professional, Enterprise devono essere semplicemente configurazioni di feature.
+
+### Add-on
+
+Analizza come rappresentare moduli acquistabili separatamente.
+
+Ad esempio:
+
+* utenti aggiuntivi;
+* SMS;
+* notifiche;
+* API;
+* report avanzati;
+* integrazioni future.
+
+### Quote
+
+Valuta se quote e feature debbano essere due concetti distinti.
+
+Ad esempio:
+
+* massimo utenti;
+* massimo cani;
+* massimo prenotazioni;
+* massimo spazio;
+* massimo chiamate API.
+
+### Trial
+
+Progetta:
+
+* trial completi;
+* trial di singole feature;
+* trial limitati nel tempo;
+* trial limitati per utilizzo.
+
+### Evoluzione futura
+
+Il sistema dovrà poter supportare senza redesign:
+
+* Stripe;
+* fatturazione automatica;
+* upgrade e downgrade;
+* sospensione tenant;
+* riattivazione;
+* coupon;
+* promozioni;
+* clienti pilota;
+* clienti interni;
+* licenze lifetime;
+* ambienti demo.
+
+## Vincoli
+
+Non voglio over-engineering.
+
+La soluzione deve essere semplice oggi ma con un percorso di crescita molto chiaro.
+
+Mantieni la filosofia architetturale adottata finora:
+
+* dominio esplicito;
+* responsabilità ben separate;
+* configurazione centralizzata;
+* componenti facilmente testabili;
+* nessuna logica commerciale dispersa nel codice.
+
+## Output
+
+Non implementare nulla.
+
+Voglio un vero documento di progettazione.
+
+Vorrei che fosse scritto come farebbe un software architect che deve progettare una piattaforma SaaS destinata a durare negli anni.
+
+Alla fine proponi anche una roadmap di implementazione motivando l'ordine delle fasi.
+
+Infine, se durante l'analisi individui aspetti del dominio che ritieni sarebbe opportuno modificare prima di implementare il sistema di monetizzazione, evidenziali esplicitamente e spiegane il motivo.

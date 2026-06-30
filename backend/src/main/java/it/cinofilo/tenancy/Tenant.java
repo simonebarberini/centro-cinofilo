@@ -42,6 +42,9 @@ public class Tenant {
     @Builder.Default
     private Map<String, Object> preferences = new HashMap<>();
 
+    @Column(name = "billing_email")
+    private String billingEmail;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

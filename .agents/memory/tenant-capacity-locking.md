@@ -49,3 +49,10 @@ failures — more moving parts for no gain at this scale.
   CyclicBarrier: exactly one succeeds, the other throws OverbookingException, final CONFIRMED == 1).
   See replit-testcontainers-sandbox.md — that IT can't be executed in the Replit sandbox; it runs in
   CI/local.
+
+**Future direction (documented decision, NOT yet implemented — see replit.md "Decisioni
+architetturali" ADR-001):** this guard is intended to grow from a pure synchronization primitive
+into the owner of the whole "tenant capacity" domain (waitlist, multiple bookings, bulk imports,
+controlled overbooking). When adding any capacity/occupancy-changing feature, concentrate the logic
+HERE, not in BookingService (which stays a use-case coordinator). This keeps the capacity domain from
+fragmenting as the product grows.

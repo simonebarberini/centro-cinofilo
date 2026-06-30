@@ -73,6 +73,28 @@ Obiettivo: trasformare il progetto in un SaaS commerciale mantenendo alta qualit
 
 ---
 
+## Decisioni architetturali
+
+### ADR-001 — `TenantCapacityGuard`: futuro owner del dominio "capacità del centro"
+
+**Stato:** decisione architetturale documentata (direzione futura). Nessuna implementazione richiesta ora.
+
+**Contesto.** `TenantCapacityGuard` nasce oggi come *primitiva di sincronizzazione*: serializza,
+tramite lock pessimistico sulla riga del tenant, tutte le operazioni che modificano l'occupazione
+(create / update / cancel delle prenotazioni), chiudendo la race condition di overbooking.
+
+**Direzione.** Con la crescita del prodotto (waitlist, prenotazioni multiple, import massivi,
+overbooking controllato, ecc.) questo componente potrà evolvere naturalmente nel **punto centrale
+del dominio "capacità del centro"** — responsabile di tutte le operazioni che modificano la
+capacità del tenant — mantenendo `BookingService` focalizzato sul coordinamento del caso d'uso.
+
+**Implicazione per le evoluzioni future.** La logica che modifica capacità/occupazione del tenant
+va concentrata in questo componente, non dispersa in `BookingService` o altrove. Questo evita che
+il dominio "capacità" si frammenti man mano che il prodotto cresce e mantiene coerente
+l'evoluzione nei prossimi mesi.
+
+---
+
 ## User preferences
 
 - Prima di ogni implementazione, verificare se esistono librerie o best practice consolidate.

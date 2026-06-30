@@ -1,0 +1,100 @@
+Revisione architetturale critica del dominio (DDD) — nessuna modifica al codice.
+
+Analizza esclusivamente il modello di dominio e ignora aspetti implementativi (Spring, JPA, cache, performance, naming, package).
+
+Voglio una revisione da Domain-Driven Design avanzato.
+
+Analizza in profondità i seguenti aspetti:
+
+1. Aggregate Design
+
+Gli aggregate individuati sono corretti?
+Esistono aggregate troppo grandi o troppo piccoli?
+Ci sono invarianti che attraversano più aggregate?
+Quali aggregate dovrebbero essere transactional boundary?
+Dove sto rischiando inconsistenze?
+
+2. Entity vs Value Object
+
+Per ogni concetto principale indica se dovrebbe essere:
+
+Entity
+Value Object
+Domain Service
+Policy
+Specification
+Factory
+
+Motivando ogni scelta.
+
+3. Invariants
+
+Individua tutte le business rule implicite.
+
+Per ogni regola indica:
+
+dove dovrebbe vivere
+chi dovrebbe garantirla
+se oggi rischia di essere violata
+se è una invariant forte o debole
+
+4. Lifecycle
+
+Analizza il ciclo di vita di:
+
+Module
+TenantModule
+Bundle
+Entitlement
+Override
+
+Individua eventuali stati mancanti o transizioni non modellate.
+
+5. Domain Events
+
+Individua gli eventi realmente appartenenti al dominio.
+
+Per ciascuno indica:
+
+chi lo emette
+chi dovrebbe ascoltarlo
+se è un Domain Event o Integration Event
+se è sincrono o asincrono
+
+Evita eventi puramente tecnici.
+
+6. Consistency Boundaries
+
+Individua dove servono:
+
+transazioni ACID
+eventual consistency
+compensazioni
+idempotenza
+
+7. Ubiquitous Language
+
+Valuta se il linguaggio del dominio è coerente.
+
+Individua termini ambigui, sovrapposti o che potrebbero creare confusione nel tempo.
+
+8. Evoluzione futura
+
+Immagina che il prodotto cresca fino ad avere:
+
+Billing con Stripe
+Trial
+Coupon
+Marketplace di moduli
+Moduli sviluppati da terze parti
+API pubbliche
+Multi-regione
+Microservizi
+
+Indica quali decisioni architetturali attuali reggerebbero bene e quali diventerebbero un collo di bottiglia.
+
+Non proporre modifiche di dettaglio al codice.
+
+Voglio una review esclusivamente concettuale, da software architect, focalizzata sul dominio, sugli aggregate, sulle invarianti e sull'evoluzione futura.
+
+Se una scelta è già corretta, spiegami perché è corretta invece di suggerire cambiamenti inutili (YAGNI).

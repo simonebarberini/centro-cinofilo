@@ -102,6 +102,7 @@ class BookingControllerIT extends AbstractPostgresIT {
         tenantB.setCapacityBoxes(1);
         tenantB = tenantRepository.save(tenantB);
         tenantBId = tenantB.getId();
+        activateBaseModule(tenantAId, tenantBId);
 
         AppUser userB = new AppUser();
         userB.setUsername("userB");

@@ -63,6 +63,7 @@ class BookingConcurrencyIT extends AbstractPostgresIT {
         tenant.setCapacityBoxes(1);
         tenant = tenantRepository.save(tenant);
         UUID tenantId = tenant.getId();
+        activateBaseModule(tenantId);
 
         Customer customer1 = createCustomer(tenant, "Mario", "Rossi", "mario.conc@example.com");
         Customer customer2 = createCustomer(tenant, "Luigi", "Verdi", "luigi.conc@example.com");

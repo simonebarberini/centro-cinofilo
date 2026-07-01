@@ -5,6 +5,7 @@ import it.cinofilo.bookings.BookingRepository;
 import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.DogRepository;
 import it.cinofilo.subscription.AdminGrantRepository;
+import it.cinofilo.subscription.TenantModule;
 import it.cinofilo.subscription.TenantModuleRepository;
 import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUserRepository;
@@ -92,6 +93,18 @@ public abstract class AbstractPostgresIT {
         if (customerRepository != null) customerRepository.deleteAllInBatch();
         if (appUserRepository != null) appUserRepository.deleteAllInBatch();
         if (tenantRepository != null) tenantRepository.deleteAllInBatch();
+    }
+
+    /**
+     * Activates the 'base' module for one or more test tenants.
+     * Must be called after test tenants are persisted, since cleanDatabase()
+     * wipes tenant_module before each test.
+     */
+    protected void activateBaseModule(java.util.UUID... tenantIds) {
+        if (tenantModuleRepository == null) return;
+        for (java.util.UUID tenantId : tenantIds) {
+            tenantModuleRepository.save(TenantModule.forActivation(tenantId, "base"));
+        }
     }
 
     protected static final PostgreSQLContainer<?> postgresContainer;

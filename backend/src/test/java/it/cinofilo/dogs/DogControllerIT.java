@@ -110,6 +110,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .capacityBoxes(10)
                 .build();
         tenantB = tenantRepository.save(tenantB);
+        activateBaseModule(tenantA.getId(), tenantB.getId());
 
         AppUser userB = AppUser.builder()
                 .tenant(tenantB)

@@ -57,6 +57,8 @@ class TenantModuleRepositoryIT extends AbstractPostgresIT {
                 .status(TenantModuleStatus.ACTIVE)
                 .build());
 
+        em.flush();
+        em.clear();
         TenantModule found = tenantModuleRepository.findById(saved.getId()).orElseThrow();
 
         assertThat(found.getTenantId()).isEqualTo(tenantId);

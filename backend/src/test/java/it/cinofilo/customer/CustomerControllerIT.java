@@ -76,6 +76,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .capacityBoxes(5)
                 .build();
         tenantB = tenantRepository.save(tenantB);
+        activateBaseModule(tenantA.getId(), tenantB.getId());
 
         // Create user for tenant A
         AppUser userA = AppUser.builder()

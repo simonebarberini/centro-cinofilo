@@ -8,6 +8,8 @@ import it.cinofilo.bookings.BookingNotFoundException;
 import it.cinofilo.bookings.InvalidDateRangeException;
 import it.cinofilo.bookings.OverbookingException;
 import it.cinofilo.catalog.ModuleNotFoundException;
+import it.cinofilo.subscription.ModuleNotActivatableException;
+import it.cinofilo.subscription.SubscriptionConflictException;
 import it.cinofilo.customer.CustomerNotFoundException;
 import it.cinofilo.dogs.DogNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -68,6 +70,20 @@ public class GlobalExceptionHandler {
         log.warn("Module not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ModuleNotActivatableException.class)
+    public ResponseEntity<ErrorResponse> handleModuleNotActivatableException(ModuleNotActivatableException ex) {
+        log.warn("Module not activatable: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(new ErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(SubscriptionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriptionConflictException(SubscriptionConflictException ex) {
+        log.warn("Subscription conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(BookingNotFoundException.class)

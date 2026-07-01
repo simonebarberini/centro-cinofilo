@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -36,4 +37,42 @@ public class TenantModule {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    // ── Static factories ──────────────────────────────────────────────────────
+
+    public static TenantModule forActivation(UUID tenantId, String moduleKey) {
+        return TenantModule.builder()
+                .tenantId(tenantId)
+                .moduleKey(moduleKey)
+                .status(TenantModuleStatus.ACTIVE)
+                .build();
+    }
+
+    public static TenantModule forTrial(UUID tenantId, String moduleKey, Instant trialEndsAt) {
+        Objects.requireNonNull(trialEndsAt, "trialEndsAt must not be null for TRIAL status");
+        return TenantModule.builder()
+                .tenantId(tenantId)
+                .moduleKey(moduleKey)
+                .status(TenantModuleStatus.TRIAL)
+                .trialEndsAt(trialEndsAt)
+                .build();
+    }
+
+    // ── State transitions ─────────────────────────────────────────────────────
+
+    public void activate() {
+        this.status = TenantModuleStatus.ACTIVE;
+        this.trialEndsAt = null;
+    }
+
+    public void startTrial(Instant trialEndsAt) {
+        Objects.requireNonNull(trialEndsAt, "trialEndsAt must not be null for TRIAL status");
+        this.status = TenantModuleStatus.TRIAL;
+        this.trialEndsAt = trialEndsAt;
+    }
+
+    public void cancel() {
+        this.status = TenantModuleStatus.CANCELLED;
+        this.trialEndsAt = null;
+    }
 }

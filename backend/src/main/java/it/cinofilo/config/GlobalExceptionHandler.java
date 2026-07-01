@@ -7,6 +7,7 @@ import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.bookings.BookingNotFoundException;
 import it.cinofilo.bookings.InvalidDateRangeException;
 import it.cinofilo.bookings.OverbookingException;
+import it.cinofilo.catalog.ModuleNotFoundException;
 import it.cinofilo.customer.CustomerNotFoundException;
 import it.cinofilo.dogs.DogNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DogNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleDogNotFoundException(DogNotFoundException ex) {
         log.warn("Dog not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ModuleNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleModuleNotFoundException(ModuleNotFoundException ex) {
+        log.warn("Module not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
     }

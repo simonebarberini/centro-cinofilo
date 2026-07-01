@@ -10,6 +10,9 @@ import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.Dog;
 import it.cinofilo.dogs.DogNotFoundException;
 import it.cinofilo.dogs.DogRepository;
+import it.cinofilo.domain.entitlement.Entitlements;
+import it.cinofilo.entitlements.EntitlementService;
+import it.cinofilo.entitlements.EntitlementViolationException;
 import it.cinofilo.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class BookingService {
     private final DogRepository dogRepository;
     private final BookingAvailabilityService availabilityService;
     private final TenantCapacityGuard tenantCapacityGuard;
+    private final EntitlementService entitlementService;
 
     /**
      * Create a new booking for the current tenant.
@@ -43,6 +47,10 @@ public class BookingService {
      */
     public BookingResponse create(CreateBookingRequest request) {
         UUID tenantId = TenantContext.getTenantId();
+
+        if (!entitlementService.isEnabled(tenantId, Entitlements.BOOKING_MANAGEMENT.key())) {
+            throw new EntitlementViolationException("Booking management is not enabled for this tenant");
+        }
 
         // Verify customer belongs to tenant
         Customer customer = customerRepository.findByIdAndTenantId(request.getCustomerId(), tenantId)

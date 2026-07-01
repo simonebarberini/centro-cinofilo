@@ -45,7 +45,6 @@ class EntitlementsTest {
         assertThat(Entitlements.CUSTOMER_MANAGEMENT).isInstanceOf(BooleanEntitlement.class);
         assertThat(Entitlements.DOG_MANAGEMENT).isInstanceOf(BooleanEntitlement.class);
         assertThat(Entitlements.CALENDAR_VIEW).isInstanceOf(BooleanEntitlement.class);
-        assertThat(Entitlements.STAFF_USERS).isInstanceOf(BooleanEntitlement.class);
         assertThat(Entitlements.SMS_NOTIFICATIONS).isInstanceOf(BooleanEntitlement.class);
         assertThat(Entitlements.API_ACCESS).isInstanceOf(BooleanEntitlement.class);
         assertThat(Entitlements.ADVANCED_REPORTS).isInstanceOf(BooleanEntitlement.class);

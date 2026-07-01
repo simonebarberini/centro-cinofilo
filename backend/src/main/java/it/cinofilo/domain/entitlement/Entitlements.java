@@ -8,7 +8,6 @@ public final class Entitlements {
     public static final BooleanEntitlement CUSTOMER_MANAGEMENT  = new BooleanEntitlement("CUSTOMER_MANAGEMENT");
     public static final BooleanEntitlement DOG_MANAGEMENT       = new BooleanEntitlement("DOG_MANAGEMENT");
     public static final BooleanEntitlement CALENDAR_VIEW        = new BooleanEntitlement("CALENDAR_VIEW");
-    public static final BooleanEntitlement STAFF_USERS          = new BooleanEntitlement("STAFF_USERS");
     public static final BooleanEntitlement SMS_NOTIFICATIONS    = new BooleanEntitlement("SMS_NOTIFICATIONS");
     public static final BooleanEntitlement API_ACCESS           = new BooleanEntitlement("API_ACCESS");
     public static final BooleanEntitlement ADVANCED_REPORTS     = new BooleanEntitlement("ADVANCED_REPORTS");

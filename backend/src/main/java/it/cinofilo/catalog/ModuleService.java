@@ -15,12 +15,21 @@ public class ModuleService {
         this.moduleRepository = moduleRepository;
     }
 
-    public List<Module> findActive() {
-        return moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE);
+    public List<ModuleResponse> findAll() {
+        return moduleRepository.findAll().stream()
+                .map(ModuleResponse::from)
+                .toList();
     }
 
-    public Module findByKey(String moduleKey) {
+    public List<ModuleResponse> findActive() {
+        return moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE).stream()
+                .map(ModuleResponse::from)
+                .toList();
+    }
+
+    public ModuleResponse findByKey(String moduleKey) {
         return moduleRepository.findById(moduleKey)
+                .map(ModuleResponse::from)
                 .orElseThrow(() -> new ModuleNotFoundException(moduleKey));
     }
 }

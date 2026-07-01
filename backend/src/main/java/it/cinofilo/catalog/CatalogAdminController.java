@@ -16,16 +16,12 @@ public class CatalogAdminController {
     private final ModuleService moduleService;
 
     @GetMapping
-    public ResponseEntity<List<ModuleResponse>> listActive() {
-        List<ModuleResponse> modules = moduleService.findActive()
-                .stream()
-                .map(ModuleResponse::from)
-                .toList();
-        return ResponseEntity.ok(modules);
+    public ResponseEntity<List<ModuleResponse>> listAll() {
+        return ResponseEntity.ok(moduleService.findAll());
     }
 
     @GetMapping("/{moduleKey}")
     public ResponseEntity<ModuleResponse> getByKey(@PathVariable String moduleKey) {
-        return ResponseEntity.ok(ModuleResponse.from(moduleService.findByKey(moduleKey)));
+        return ResponseEntity.ok(moduleService.findByKey(moduleKey));
     }
 }

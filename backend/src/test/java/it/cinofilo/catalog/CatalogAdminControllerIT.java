@@ -26,22 +26,22 @@ class CatalogAdminControllerIT extends AbstractPostgresIT {
 
     @Test
     @WithMockUser(roles = "ADMIN_APP")
-    void listActive_returnsSeededBaseModule() throws Exception {
+    void listAll_returnsAllSeededModules() throws Exception {
         mockMvc.perform(get("/admin/catalog"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].moduleKey").value("base"))
-                .andExpect(jsonPath("$[0].type").value("BASE"))
-                .andExpect(jsonPath("$[0].activationStatus").value("ACTIVE"));
+                .andExpect(jsonPath("$[?(@.moduleKey == 'base')].activationStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$[?(@.moduleKey == 'staff')].activationStatus").value("INACTIVE"))
+                .andExpect(jsonPath("$[?(@.moduleKey == 'sms')].activationStatus").value("INACTIVE"));
     }
 
     @Test
     @WithMockUser(roles = "ADMIN_APP")
-    void listActive_doesNotReturnInactiveModules() throws Exception {
+    void listAll_includesInactiveModules() throws Exception {
         mockMvc.perform(get("/admin/catalog"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.moduleKey == 'staff')]").isEmpty())
-                .andExpect(jsonPath("$[?(@.moduleKey == 'sms')]").isEmpty());
+                .andExpect(jsonPath("$[?(@.moduleKey == 'staff')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.moduleKey == 'sms')]").isNotEmpty());
     }
 
     @Test

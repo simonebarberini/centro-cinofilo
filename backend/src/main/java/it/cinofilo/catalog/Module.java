@@ -34,7 +34,7 @@ public class Module {
     @Builder.Default
     private ModuleActivationStatus activationStatus = ModuleActivationStatus.INACTIVE;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "module_key", updatable = false)
     @Builder.Default
     private List<ModuleEntitlement> entitlements = new ArrayList<>();

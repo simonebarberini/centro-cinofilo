@@ -22,31 +22,63 @@ class ModuleServiceTest {
     }
 
     @Test
-    void findActive_delegatesToRepository() {
-        List<Module> expected = List.of(activeModule("base"), activeModule("reports"));
-        when(moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE)).thenReturn(expected);
+    void findAll_returnsMappedResponses() {
+        when(moduleRepository.findAll()).thenReturn(List.of(
+                module("base",    ModuleActivationStatus.ACTIVE),
+                module("staff",   ModuleActivationStatus.INACTIVE),
+                module("reports", ModuleActivationStatus.DEPRECATED)
+        ));
 
-        List<Module> result = moduleService.findActive();
+        List<ModuleResponse> result = moduleService.findAll();
 
-        assertThat(result).isEqualTo(expected);
+        assertThat(result).hasSize(3);
+        assertThat(result).extracting(ModuleResponse::moduleKey)
+                .containsExactly("base", "staff", "reports");
+        verify(moduleRepository).findAll();
+    }
+
+    @Test
+    void findAll_returnsAllStatuses() {
+        when(moduleRepository.findAll()).thenReturn(List.of(
+                module("a", ModuleActivationStatus.ACTIVE),
+                module("b", ModuleActivationStatus.INACTIVE),
+                module("c", ModuleActivationStatus.DEPRECATED)
+        ));
+
+        List<ModuleResponse> result = moduleService.findAll();
+
+        assertThat(result).extracting(ModuleResponse::activationStatus)
+                .containsExactlyInAnyOrder("ACTIVE", "INACTIVE", "DEPRECATED");
+    }
+
+    @Test
+    void findActive_returnsOnlyActiveMappedResponses() {
+        when(moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE))
+                .thenReturn(List.of(module("base", ModuleActivationStatus.ACTIVE)));
+
+        List<ModuleResponse> result = moduleService.findActive();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).activationStatus()).isEqualTo("ACTIVE");
         verify(moduleRepository).findByActivationStatus(ModuleActivationStatus.ACTIVE);
     }
 
     @Test
     void findActive_returnsEmptyListWhenNoneActive() {
-        when(moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE)).thenReturn(List.of());
+        when(moduleRepository.findByActivationStatus(ModuleActivationStatus.ACTIVE))
+                .thenReturn(List.of());
 
         assertThat(moduleService.findActive()).isEmpty();
     }
 
     @Test
-    void findByKey_returnsModuleWhenFound() {
-        Module base = activeModule("base");
-        when(moduleRepository.findById("base")).thenReturn(Optional.of(base));
+    void findByKey_returnsMappedResponse() {
+        when(moduleRepository.findById("base"))
+                .thenReturn(Optional.of(module("base", ModuleActivationStatus.ACTIVE)));
 
-        Module result = moduleService.findByKey("base");
+        ModuleResponse result = moduleService.findByKey("base");
 
-        assertThat(result).isEqualTo(base);
+        assertThat(result.moduleKey()).isEqualTo("base");
     }
 
     @Test
@@ -60,12 +92,12 @@ class ModuleServiceTest {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private Module activeModule(String key) {
+    private Module module(String key, ModuleActivationStatus status) {
         return Module.builder()
                 .moduleKey(key)
                 .name(key)
                 .type(ModuleType.OPTIONAL)
-                .activationStatus(ModuleActivationStatus.ACTIVE)
+                .activationStatus(status)
                 .build();
     }
 }

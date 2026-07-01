@@ -4,6 +4,7 @@ import it.cinofilo.auth.EmailTokenRepository;
 import it.cinofilo.bookings.BookingRepository;
 import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.DogRepository;
+import it.cinofilo.subscription.AdminGrantRepository;
 import it.cinofilo.subscription.TenantModuleRepository;
 import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUserRepository;
@@ -63,6 +64,9 @@ public abstract class AbstractPostgresIT {
     private TenantModuleRepository tenantModuleRepository;
 
     @Autowired(required = false)
+    private AdminGrantRepository adminGrantRepository;
+
+    @Autowired(required = false)
     private TenantRepository tenantRepository;
 
     /**
@@ -82,6 +86,7 @@ public abstract class AbstractPostgresIT {
     protected void cleanDatabase() {
         if (emailTokenRepository != null) emailTokenRepository.deleteAllInBatch();
         if (tenantModuleRepository != null) tenantModuleRepository.deleteAllInBatch();
+        if (adminGrantRepository != null) adminGrantRepository.deleteAllInBatch();
         if (bookingRepository != null) bookingRepository.deleteAllInBatch();
         if (dogRepository != null) dogRepository.deleteAllInBatch();
         if (customerRepository != null) customerRepository.deleteAllInBatch();

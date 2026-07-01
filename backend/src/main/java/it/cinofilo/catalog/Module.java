@@ -3,6 +3,9 @@ package it.cinofilo.catalog;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "module")
 @Getter
@@ -30,4 +33,9 @@ public class Module {
     @Column(name = "activation_status", nullable = false, length = 20)
     @Builder.Default
     private ModuleActivationStatus activationStatus = ModuleActivationStatus.INACTIVE;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "module_key", updatable = false)
+    @Builder.Default
+    private List<ModuleEntitlement> entitlements = new ArrayList<>();
 }

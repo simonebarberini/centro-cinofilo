@@ -32,4 +32,9 @@ public interface DogRepository extends JpaRepository<Dog, UUID> {
      * Check if a dog exists by ID within a specific tenant.
      */
     boolean existsByIdAndTenantId(UUID id, UUID tenantId);
+
+    /**
+     * Count all dogs for a specific tenant. Used for quota enforcement.
+     */
+    long countByTenantId(UUID tenantId);
 }

@@ -8,6 +8,7 @@ import it.cinofilo.bookings.BookingNotFoundException;
 import it.cinofilo.bookings.InvalidDateRangeException;
 import it.cinofilo.bookings.OverbookingException;
 import it.cinofilo.catalog.ModuleNotFoundException;
+import it.cinofilo.entitlements.EntitlementViolationException;
 import it.cinofilo.subscription.ModuleNotActivatableException;
 import it.cinofilo.subscription.SubscriptionConflictException;
 import it.cinofilo.customer.CustomerNotFoundException;
@@ -70,6 +71,13 @@ public class GlobalExceptionHandler {
         log.warn("Module not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(EntitlementViolationException.class)
+    public ResponseEntity<ErrorResponse> handleEntitlementViolationException(EntitlementViolationException ex) {
+        log.warn("Entitlement violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(ModuleNotActivatableException.class)

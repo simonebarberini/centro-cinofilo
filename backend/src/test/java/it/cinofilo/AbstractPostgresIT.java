@@ -4,6 +4,7 @@ import it.cinofilo.auth.EmailTokenRepository;
 import it.cinofilo.bookings.BookingRepository;
 import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.DogRepository;
+import it.cinofilo.subscription.TenantModuleRepository;
 import it.cinofilo.tenancy.TenantRepository;
 import it.cinofilo.users.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,12 +60,15 @@ public abstract class AbstractPostgresIT {
     private AppUserRepository appUserRepository;
 
     @Autowired(required = false)
+    private TenantModuleRepository tenantModuleRepository;
+
+    @Autowired(required = false)
     private TenantRepository tenantRepository;
 
     /**
      * Wipes all domain tables before each test, in child-to-parent order so that
      * every foreign key is satisfied:
-     * email_token → booking → dog → customer → app_user → tenant.
+     * email_token → tenant_module → booking → dog → customer → app_user → tenant.
      *
      * <p>Repositories are injected with {@code required = false} because slice
      * tests (e.g. {@code @DataJpaTest}) may not expose every repository bean;
@@ -77,6 +81,7 @@ public abstract class AbstractPostgresIT {
     @BeforeEach
     protected void cleanDatabase() {
         if (emailTokenRepository != null) emailTokenRepository.deleteAllInBatch();
+        if (tenantModuleRepository != null) tenantModuleRepository.deleteAllInBatch();
         if (bookingRepository != null) bookingRepository.deleteAllInBatch();
         if (dogRepository != null) dogRepository.deleteAllInBatch();
         if (customerRepository != null) customerRepository.deleteAllInBatch();

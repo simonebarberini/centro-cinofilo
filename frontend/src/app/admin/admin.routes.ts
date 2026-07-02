@@ -1,0 +1,15 @@
+import { Routes } from '@angular/router';
+import { AdminLayoutComponent } from './admin-layout/admin-layout.component';
+
+export const adminRoutes: Routes = [
+  {
+    path: '',
+    component: AdminLayoutComponent,
+    children: [
+      // P4 — { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
+      // P5 — { path: 'tenants', ... }
+      // P5 — { path: 'tenants/:tenantId', ... }
+      // P6 — { path: 'catalog', ... }
+    ]
+  }
+];

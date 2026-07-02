@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './admin/guards/admin.guard';
 import { MainLayoutComponent } from './layout/main-layout.component';
 
 export const routes: Routes = [
@@ -23,6 +24,11 @@ export const routes: Routes = [
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
       { path: '', redirectTo: 'calendar', pathMatch: 'full' }
     ]
+  },
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    loadChildren: () => import('./admin/admin.routes').then(m => m.adminRoutes)
   },
   { path: '**', redirectTo: '' }
 ];

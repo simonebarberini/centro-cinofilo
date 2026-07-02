@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +21,12 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     boolean existsByName(String name);
 
     boolean existsBySlug(String slug);
+
+    /**
+     * Full-text search on name and slug (case-insensitive substring match).
+     * Used by the platform admin backoffice to filter tenants.
+     */
+    List<Tenant> findByNameContainingIgnoreCaseOrSlugContainingIgnoreCase(String name, String slug);
 
     /**
      * Loads a tenant while acquiring a pessimistic write lock

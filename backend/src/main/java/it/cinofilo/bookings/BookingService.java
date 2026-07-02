@@ -10,6 +10,9 @@ import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.Dog;
 import it.cinofilo.dogs.DogNotFoundException;
 import it.cinofilo.dogs.DogRepository;
+import it.cinofilo.domain.entitlement.Entitlements;
+import it.cinofilo.entitlements.EntitlementService;
+import it.cinofilo.entitlements.EntitlementViolationException;
 import it.cinofilo.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,8 @@ public class BookingService {
     private final CustomerRepository customerRepository;
     private final DogRepository dogRepository;
     private final BookingAvailabilityService availabilityService;
+    private final TenantCapacityGuard tenantCapacityGuard;
+    private final EntitlementService entitlementService;
 
     /**
      * Create a new booking for the current tenant.
@@ -43,6 +48,10 @@ public class BookingService {
     public BookingResponse create(CreateBookingRequest request) {
         UUID tenantId = TenantContext.getTenantId();
 
+        if (!entitlementService.isEnabled(tenantId, Entitlements.BOOKING_MANAGEMENT.key())) {
+            throw new EntitlementViolationException("Booking management is not enabled for this tenant");
+        }
+
         // Verify customer belongs to tenant
         Customer customer = customerRepository.findByIdAndTenantId(request.getCustomerId(), tenantId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found with ID: " + request.getCustomerId()));
@@ -51,11 +60,9 @@ public class BookingService {
         Dog dog = dogRepository.findByIdAndTenantId(request.getDogId(), tenantId)
                 .orElseThrow(() -> new DogNotFoundException("Dog not found with ID: " + request.getDogId()));
 
-        // Validate date range and check availability before creating
+        // Validate date range before entering the capacity-critical section
         validateDateRange(request.getStartDate(), request.getEndDate());
-        availabilityService.checkCanBookOrThrow(tenantId, request.getStartDate(), request.getEndDate(), null);
 
-        // Create booking
         Booking booking = Booking.builder()
                 .tenantId(tenantId)
                 .customer(customer)
@@ -66,8 +73,13 @@ public class BookingService {
                 .status(BookingStatus.CONFIRMED)
                 .build();
 
-        Booking saved = bookingRepository.save(booking);
-        return toResponse(saved);
+        // Capacity check + persist run under a per-tenant lock so two concurrent
+        // requests cannot both pass the check and overbook the centre.
+        return tenantCapacityGuard.executeForTenant(tenantId, () -> {
+            availabilityService.checkCanBookOrThrow(tenantId, request.getStartDate(), request.getEndDate(), null);
+            Booking saved = bookingRepository.save(booking);
+            return toResponse(saved);
+        });
     }
 
     /**
@@ -118,34 +130,35 @@ public class BookingService {
         LocalDate newEndDate = request.getEndDate() != null ? request.getEndDate() : booking.getEndDate();
         BookingStatus newStatus = request.getStatus() != null ? request.getStatus() : booking.getStatus();
 
-        if (request.getStartDate() != null) {
-            booking.setStartDate(request.getStartDate());
-        }
-
-        if (request.getEndDate() != null) {
-            booking.setEndDate(request.getEndDate());
-        }
-
-        // Validate date range if dates are provided
+        // Validate date range if dates are provided (pure request validation,
+        // no occupancy state touched yet).
         if (request.getStartDate() != null || request.getEndDate() != null) {
             validateDateRange(newStartDate, newEndDate);
         }
 
-        // Check availability when resulting status is CONFIRMED
-        if (newStatus == BookingStatus.CONFIRMED) {
-            availabilityService.checkCanBookOrThrow(tenantId, newStartDate, newEndDate, booking.getId());
-        }
-
-        if (request.getNotes() != null) {
-            booking.setNotes(request.getNotes());
-        }
-
-        if (request.getStatus() != null) {
-            booking.setStatus(request.getStatus());
-        }
-
-        Booking updated = bookingRepository.save(booking);
-        return toResponse(updated);
+        // Capacity check (when the result is CONFIRMED), the occupancy-changing
+        // mutations and the persist all run under a per-tenant lock so the tenant
+        // row is the first occupancy-changing database action and concurrent
+        // updates cannot overbook the centre.
+        return tenantCapacityGuard.executeForTenant(tenantId, () -> {
+            if (newStatus == BookingStatus.CONFIRMED) {
+                availabilityService.checkCanBookOrThrow(tenantId, newStartDate, newEndDate, booking.getId());
+            }
+            if (request.getStartDate() != null) {
+                booking.setStartDate(request.getStartDate());
+            }
+            if (request.getEndDate() != null) {
+                booking.setEndDate(request.getEndDate());
+            }
+            if (request.getNotes() != null) {
+                booking.setNotes(request.getNotes());
+            }
+            if (request.getStatus() != null) {
+                booking.setStatus(request.getStatus());
+            }
+            Booking updated = bookingRepository.save(booking);
+            return toResponse(updated);
+        });
     }
 
     /**
@@ -160,9 +173,14 @@ public class BookingService {
         Booking booking = bookingRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new BookingNotFoundException("Booking not found with ID: " + id));
 
-        booking.setStatus(BookingStatus.CANCELLED);
-        Booking cancelled = bookingRepository.save(booking);
-        return toResponse(cancelled);
+        // Cancellation lowers occupancy and cannot overbook, but it still flows
+        // through the guard so that every occupancy-changing operation is
+        // serialized through a single, explicit path.
+        return tenantCapacityGuard.executeForTenant(tenantId, () -> {
+            booking.setStatus(BookingStatus.CANCELLED);
+            Booking cancelled = bookingRepository.save(booking);
+            return toResponse(cancelled);
+        });
     }
 
     /**

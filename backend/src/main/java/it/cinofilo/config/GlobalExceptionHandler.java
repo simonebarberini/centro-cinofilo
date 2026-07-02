@@ -1,10 +1,16 @@
 package it.cinofilo.config;
 
+import it.cinofilo.auth.ConflictException;
+import it.cinofilo.auth.EmailNotVerifiedException;
 import it.cinofilo.auth.TenantNotFoundException;
 import it.cinofilo.auth.UnauthorizedException;
 import it.cinofilo.bookings.BookingNotFoundException;
 import it.cinofilo.bookings.InvalidDateRangeException;
 import it.cinofilo.bookings.OverbookingException;
+import it.cinofilo.catalog.ModuleNotFoundException;
+import it.cinofilo.entitlements.EntitlementViolationException;
+import it.cinofilo.subscription.ModuleNotActivatableException;
+import it.cinofilo.subscription.SubscriptionConflictException;
 import it.cinofilo.customer.CustomerNotFoundException;
 import it.cinofilo.dogs.DogNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +29,20 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized attempt: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
+        log.warn("Email not verified: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflictException(ConflictException ex) {
+        log.warn("Conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(TenantNotFoundException.class)
@@ -44,6 +64,34 @@ public class GlobalExceptionHandler {
         log.warn("Dog not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ModuleNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleModuleNotFoundException(ModuleNotFoundException ex) {
+        log.warn("Module not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(EntitlementViolationException.class)
+    public ResponseEntity<ErrorResponse> handleEntitlementViolationException(EntitlementViolationException ex) {
+        log.warn("Entitlement violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ModuleNotActivatableException.class)
+    public ResponseEntity<ErrorResponse> handleModuleNotActivatableException(ModuleNotActivatableException ex) {
+        log.warn("Module not activatable: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(new ErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(SubscriptionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriptionConflictException(SubscriptionConflictException ex) {
+        log.warn("Subscription conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(BookingNotFoundException.class)

@@ -75,12 +75,7 @@ class BookingControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean up before each test
-        bookingRepository.deleteAll();
-        dogRepository.deleteAll();
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Setup Tenant A with capacity of 2 boxes
         Tenant tenantA = new Tenant();
@@ -96,6 +91,7 @@ class BookingControllerIT extends AbstractPostgresIT {
         userA.setPasswordHash(passwordEncoder.encode("password"));
         userA.setRole(Role.TENANT_OWNER);
         userA.setTenant(tenantA);
+        userA.setEmailVerified(true);
         appUserRepository.save(userA);
 
         // Setup Tenant B with capacity of 1 box
@@ -106,12 +102,14 @@ class BookingControllerIT extends AbstractPostgresIT {
         tenantB.setCapacityBoxes(1);
         tenantB = tenantRepository.save(tenantB);
         tenantBId = tenantB.getId();
+        activateBaseModule(tenantAId, tenantBId);
 
         AppUser userB = new AppUser();
         userB.setUsername("userB");
         userB.setPasswordHash(passwordEncoder.encode("password"));
         userB.setRole(Role.TENANT_OWNER);
         userB.setTenant(tenantB);
+        userB.setEmailVerified(true);
         appUserRepository.save(userB);
 
         // Login as Tenant A

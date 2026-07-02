@@ -14,6 +14,7 @@ export class MainLayoutComponent {
 
   readonly navItems = [
     { path: '/calendar', label: 'Calendario', icon: '📅' },
+    { path: '/quick-booking', label: 'Prenotazione rapida', icon: '⚡' },
     { path: '/customers', label: 'Clienti', icon: '👥' },
     { path: '/dogs', label: 'Cani', icon: '🐾' },
     { path: '/bookings', label: 'Prenotazioni', icon: '📋' },

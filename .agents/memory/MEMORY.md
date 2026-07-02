@@ -1,0 +1,7 @@
+- [JWT algorithm pinning](jwt-algorithm-pinning.md) — sign & verify must hard-pin the SAME explicit HMAC alg; JJWT derives it from key byte-length, which silently diverges from a fixed decoder.
+- [HTTP security headers](security-headers.md) — Nginx owns SPA headers, Spring owns /api headers (no overlap); HSTS is default-ON in Spring so must be explicitly disabled to defer it; CSP/HSTS deferred until deploy/TLS/integrations decided; `/api/` needs `^~`.
+- [Tenant-capacity locking](tenant-capacity-locking.md) — serialize all occupancy-changing ops via a PESSIMISTIC_WRITE lock on the tenant row, funneled through one domain component (MANDATORY tx, domain-named API); apply entity setters inside the lock.
+- [Testcontainers in the Replit sandbox](replit-testcontainers-sandbox.md) — the *IT suite can't run in this sandbox (Ryuk sysfs mount blocked, DB stalls/OOM, bg runs reaped); verify via test-compile, run ITs in CI/local.
+- [Integration-test DB cleanup](integration-test-cleanup.md) — ONE FK-safe wipe in AbstractPostgresIT @BeforeEach; non-transactional MockMvc ITs commit; ITs must run sequentially; FK delete order is fixed.
+- [Java 21 in Replit](java21-replit.md) — set JAVA_HOME to the openjdk-21 nix path before every mvn; default GraalVM 22.3 is Java 19 and rejects --release 21.
+- [Spring Boot map keys with slashes](spring-boot-map-slash-keys.md) — relaxed binding strips `/`,`.`,`-` from @ConfigurationProperties Map keys; use bracket notation `"[/auth/login]"` to keep HTTP paths verbatim.

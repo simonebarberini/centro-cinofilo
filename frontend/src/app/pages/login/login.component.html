@@ -38,6 +38,7 @@
         <div class="form-control w-full">
           <label class="label" for="password">
             <span class="label-text font-medium">Password</span>
+            <a routerLink="/forgot-password" class="label-text-alt link link-primary">Password dimenticata?</a>
           </label>
           <input
             id="password"
@@ -54,7 +55,16 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{{ errorMessage }}</span>
+            <div>
+              <span>{{ errorMessage }}</span>
+              @if (showResendLink) {
+                <div class="mt-1">
+                  <a routerLink="/register-success" [queryParams]="{ resend: true }" class="link font-medium">
+                    Reinvia email di verifica
+                  </a>
+                </div>
+              }
+            </div>
           </div>
         }
 
@@ -68,6 +78,11 @@
           }
           {{ loading ? 'Accesso in corso...' : 'Accedi' }}
         </button>
+
+        <p class="text-center text-sm text-base-content/60">
+          Non hai un account?
+          <a routerLink="/register" class="link link-primary font-medium">Registrati</a>
+        </p>
       </form>
     </div>
   </div>

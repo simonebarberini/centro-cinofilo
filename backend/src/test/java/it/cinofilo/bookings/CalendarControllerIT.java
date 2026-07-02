@@ -69,12 +69,7 @@ class CalendarControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean up
-        bookingRepository.deleteAll();
-        dogRepository.deleteAll();
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Setup Tenant
         Tenant tenant = new Tenant();
@@ -91,6 +86,7 @@ class CalendarControllerIT extends AbstractPostgresIT {
         user.setPasswordHash(passwordEncoder.encode("password"));
         user.setRole(Role.TENANT_OWNER);
         user.setTenant(tenant);
+        user.setEmailVerified(true);
         appUserRepository.save(user);
 
         // Login

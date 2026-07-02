@@ -1,0 +1,1 @@
+ALTER TABLE tenant ADD COLUMN billing_email VARCHAR(255) NULL;

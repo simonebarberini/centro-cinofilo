@@ -1,5 +1,8 @@
 package it.cinofilo.customer;
 
+import it.cinofilo.domain.entitlement.Entitlements;
+import it.cinofilo.entitlements.EntitlementService;
+import it.cinofilo.entitlements.EntitlementViolationException;
 import it.cinofilo.tenancy.Tenant;
 import it.cinofilo.tenancy.TenantContext;
 import it.cinofilo.tenancy.TenantRepository;
@@ -17,6 +20,7 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final TenantRepository tenantRepository;
+    private final EntitlementService entitlementService;
 
     /**
      * Create a new customer for the current tenant.
@@ -27,6 +31,11 @@ public class CustomerService {
      */
     public Customer create(Customer customer) {
         UUID tenantId = TenantContext.getTenantId();
+
+        if (!entitlementService.isEnabled(tenantId, Entitlements.CUSTOMER_MANAGEMENT.key())) {
+            throw new EntitlementViolationException("Customer management is not enabled for this tenant");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalStateException("Tenant not found for ID: " + tenantId));
         

@@ -2,12 +2,11 @@ package it.cinofilo.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import it.cinofilo.config.JwtProperties;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
@@ -19,11 +18,20 @@ public class JwtService {
     private final SecretKey secretKey;
     private final long expirationMs;
 
-    public JwtService(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration-ms:28800000}") long expirationMs) { // Default 8 ore
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationMs = expirationMs;
+    public JwtService(JwtProperties jwtProperties) {
+        byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 64) {
+            throw new IllegalArgumentException(
+                "JWT secret must be at least 64 bytes (512 bits) for HS512. " +
+                "Current length: " + keyBytes.length + " bytes. " +
+                "Set a stronger JWT_SECRET environment variable."
+            );
+        }
+        // The signing algorithm is an explicit application choice (HS512); it is
+        // NEVER derived from the key length. The key is bound to HmacSHA512 to
+        // match the JwtDecoder configured in SecurityConfig.
+        this.secretKey = new SecretKeySpec(keyBytes, "HmacSHA512");
+        this.expirationMs = jwtProperties.getExpirationMs();
     }
 
     public String generateToken(UUID userId, UUID tenantId, String role, String username) {
@@ -37,7 +45,7 @@ public class JwtService {
                 .claim("username", username)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .signWith(secretKey, Jwts.SIG.HS512)
                 .compact();
     }
 

@@ -20,7 +20,7 @@
                 [attr.disabled]="isEditMode ? '' : null">
           <option value="">Seleziona cliente...</option>
           <option *ngFor="let c of customers" [value]="c.id">
-            {{ c.firstName }} {{ c.lastName }}
+            {{ c.firstName }} {{ c.lastName }}{{ c.phone ? ' — ' + c.phone : '' }}
           </option>
         </select>
         <label class="label" *ngIf="isInvalid('customerId')">

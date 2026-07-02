@@ -70,11 +70,7 @@ class DogControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean database - must delete in order due to foreign key constraints
-        dogRepository.deleteAll();
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Create Tenant A
         String slugA = "tenant-a-" + UUID.randomUUID();
@@ -92,6 +88,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userA);
 
@@ -113,6 +110,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .capacityBoxes(10)
                 .build();
         tenantB = tenantRepository.save(tenantB);
+        activateBaseModule(tenantA.getId(), tenantB.getId());
 
         AppUser userB = AppUser.builder()
                 .tenant(tenantB)
@@ -120,6 +118,7 @@ class DogControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userB);
 

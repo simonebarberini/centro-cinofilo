@@ -1,0 +1,165 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200 px-4 py-8">
+  <div class="card w-full max-w-lg bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="text-center mb-4">
+        <h2 class="text-2xl font-bold text-primary">🐾 Centro Cinofilo</h2>
+        <p class="text-sm text-base-content/60 mt-1">Crea il tuo centro</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+
+        <!-- Sezione centro -->
+        <div class="divider text-xs text-base-content/50 my-2">Dati del centro</div>
+
+        <div class="form-control w-full">
+          <label class="label" for="tenantName">
+            <span class="label-text font-medium">Nome del centro</span>
+          </label>
+          <input
+            id="tenantName"
+            type="text"
+            formControlName="tenantName"
+            placeholder="es. Centro Cinofilo Roma"
+            autocomplete="organization"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control w-full">
+          <label class="label" for="tenantType">
+            <span class="label-text font-medium">Tipo di centro</span>
+          </label>
+          <select id="tenantType" formControlName="tenantType" class="select select-bordered w-full">
+            <option value="" disabled selected>Seleziona il tipo...</option>
+            @for (type of tenantTypes; track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-control w-full">
+          <label class="label" for="tenantSlug">
+            <span class="label-text font-medium">Identificativo centro (slug)</span>
+            <span class="label-text-alt text-base-content/50">solo lettere minuscole, numeri e trattini</span>
+          </label>
+          <input
+            id="tenantSlug"
+            type="text"
+            formControlName="tenantSlug"
+            placeholder="es. centro-cinofilo-roma"
+            class="input input-bordered w-full"
+            [class.input-error]="slugField.touched && slugField.invalid"
+          />
+          @if (slugField.touched && slugField.errors?.['invalidSlug']) {
+            <label class="label">
+              <span class="label-text-alt text-error">Solo lettere minuscole, numeri e trattini</span>
+            </label>
+          }
+        </div>
+
+        <!-- Sezione account -->
+        <div class="divider text-xs text-base-content/50 my-2">Credenziali account</div>
+
+        <div class="form-control w-full">
+          <label class="label" for="username">
+            <span class="label-text font-medium">Username</span>
+          </label>
+          <input
+            id="username"
+            type="text"
+            formControlName="username"
+            placeholder="il tuo username"
+            autocomplete="username"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control w-full">
+          <label class="label" for="email">
+            <span class="label-text font-medium">Email</span>
+          </label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="la tua email"
+            autocomplete="email"
+            class="input input-bordered w-full"
+            [class.input-error]="emailField.touched && emailField.invalid"
+          />
+          @if (emailField.touched && emailField.errors?.['email']) {
+            <label class="label">
+              <span class="label-text-alt text-error">Inserisci un indirizzo email valido</span>
+            </label>
+          }
+        </div>
+
+        <div class="form-control w-full">
+          <label class="label" for="password">
+            <span class="label-text font-medium">Password</span>
+            <span class="label-text-alt text-base-content/50">minimo 8 caratteri</span>
+          </label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            placeholder="almeno 8 caratteri"
+            autocomplete="new-password"
+            class="input input-bordered w-full"
+            [class.input-error]="passwordField.touched && passwordField.errors?.['minlength']"
+          />
+          @if (passwordField.touched && passwordField.errors?.['minlength']) {
+            <label class="label">
+              <span class="label-text-alt text-error">La password deve essere di almeno 8 caratteri</span>
+            </label>
+          }
+        </div>
+
+        <div class="form-control w-full">
+          <label class="label" for="confirmPassword">
+            <span class="label-text font-medium">Conferma password</span>
+          </label>
+          <input
+            id="confirmPassword"
+            type="password"
+            formControlName="confirmPassword"
+            placeholder="ripeti la password"
+            autocomplete="new-password"
+            class="input input-bordered w-full"
+            [class.input-error]="form.touched && form.errors?.['passwordMismatch']"
+          />
+          @if (form.touched && form.errors?.['passwordMismatch']) {
+            <label class="label">
+              <span class="label-text-alt text-error">Le password non coincidono</span>
+            </label>
+          }
+        </div>
+
+        @if (errorMessage) {
+          <div class="alert alert-error text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ errorMessage }}</span>
+          </div>
+        }
+
+        <button
+          type="submit"
+          class="btn btn-primary w-full"
+          [disabled]="form.invalid || loading"
+        >
+          @if (loading) {
+            <span class="loading loading-spinner loading-sm"></span>
+          }
+          {{ loading ? 'Registrazione in corso...' : 'Registrati' }}
+        </button>
+
+        <p class="text-center text-sm text-base-content/60">
+          Hai già un account?
+          <a routerLink="/login" class="link link-primary font-medium">Accedi</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</div>

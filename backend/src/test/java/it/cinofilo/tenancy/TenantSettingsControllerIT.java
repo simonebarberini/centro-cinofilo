@@ -41,8 +41,7 @@ class TenantSettingsControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Create tenant
         Tenant tenant = Tenant.builder()
@@ -60,6 +59,7 @@ class TenantSettingsControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode("password"))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(owner);
 
@@ -70,6 +70,7 @@ class TenantSettingsControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode("password"))
                 .role(Role.TENANT_STAFF)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(staff);
 

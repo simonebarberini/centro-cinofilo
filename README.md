@@ -13,53 +13,19 @@ centro-cinofilo/
 └── docs/             # Documentazione del progetto
 ```
 
+## Documentazione
+
+| Documento | Contenuto |
+|-----------|-----------|
+| [docs/docker-guide.md](docs/docker-guide.md) | Spiegazione completa di Docker, Dockerfile, Docker Compose e come sono usati nel progetto |
+
 ## Prerequisiti
 
-- Node.js (v16 o superiore)
-- Java (v11 o superiore)
-- Docker & Docker Compose
+- Java 21+
+- Maven 3.9+ (su macOS: incluso in IntelliJ IDEA CE sotto `Contents/plugins/maven/lib/maven3/bin/mvn`)
+- Node.js 22+ e npm
+- Docker e Docker Compose v2+
 - Git
-
-## Comandi Principali
-
-### Setup iniziale
-```bash
-# Installare dipendenze frontend
-cd frontend && npm install
-
-# Il backend (Maven) scaricherà le dipendenze automaticamente al primo build
-cd backend && mvn clean install
-```
-
-### Sviluppo
-```bash
-# Avviare backend
-cd backend && mvn spring-boot:run
-
-# Avviare frontend
-cd frontend && npm run dev
-
-# Avviare con Docker Compose
-docker-compose -f infra/docker/docker-compose.yml up
-```
-
-### Build
-```bash
-# Build backend
-cd backend && mvn clean package
-
-# Build frontend
-cd frontend && npm run build
-```
-
-### Testing
-```bash
-# Test backend
-cd backend && mvn test
-
-# Test frontend
-cd frontend && npm test
-```
 
 ## Postman Smoke Tests
 
@@ -172,126 +138,212 @@ Se devi esportare l'environment dopo una sessione di test:
 - **Backend in esecuzione**: Assicurarsi che il backend Spring Boot sia in esecuzione su `http://localhost:8080` prima di eseguire i test.
 - **Team sync**: Usa sempre "Import Replace" e non "Import Merge" per evitare conflitti nell'environment.
 
-## Avvio DB locale
+## Avvio in locale (sviluppo)
 
-### Prerequisiti
-- Docker e Docker Compose installati
-- File `.env` configurato (copia da `.env.example` se necessario)
+In locale si avviano **tre processi** separati: il database e Mailhog via Docker, il backend con Maven, il frontend con npm. Non è necessario buildare container per BE o FE.
 
-### Avvio del database PostgreSQL
+---
+
+### 1. Configurare le variabili d'ambiente
 
 ```bash
-# Avviare il container PostgreSQL
-docker-compose -f infra/docker/docker-compose.yml up -d
-
-# Verificare lo stato del container
-docker-compose -f infra/docker/docker-compose.yml ps
-
-# Visualizzare i log
-docker-compose -f infra/docker/docker-compose.yml logs -f postgres
-
-# Fermare il database
-docker-compose -f infra/docker/docker-compose.yml down
-
-# Fermare e rimuovere il volume (reset completo)
-docker-compose -f infra/docker/docker-compose.yml down -v
+# Dalla root del progetto
+cp .env.dev.example .env.dev
 ```
 
-### Connessione al database
+Il file `.env.dev` contiene già valori funzionanti per lo sviluppo — non è necessario modificarlo salvo esigenze particolari.
 
-**Host**: localhost  
-**Porta**: 5432  
-**Database**: cinofilo  
-**Username**: cinofilo  
-**Password**: cinofilo
+---
 
-Esempio con `psql`:
+### 2. Avviare il database PostgreSQL
+
+```bash
+docker compose --env-file .env.dev -f infra/docker/dev/docker-compose.yml up -d
+```
+
+Verifica:
+```bash
+docker compose -f infra/docker/dev/docker-compose.yml ps
+# cinofilo-dev-db   Up (healthy)
+```
+
+Connessione diretta (opzionale):
 ```bash
 psql -h localhost -U cinofilo -d cinofilo
 ```
 
-## Avvio Backend
+Stop:
+```bash
+docker compose -f infra/docker/dev/docker-compose.yml down
 
-### Prerequisiti
-- Java 21 o superiore
-- Maven
-- PostgreSQL in esecuzione (opzionale per lo sviluppo iniziale)
+# Reset completo (cancella i dati)
+docker compose -f infra/docker/dev/docker-compose.yml down -v
+```
 
-### Avvio dell'applicazione Spring Boot
+---
+
+### 3. Avviare Mailhog (per la verifica email e il reset password)
+
+Mailhog intercetta le email inviate dal backend senza consegnarle realmente. È necessario per testare la registrazione e il recupero password.
 
 ```bash
-# Posizionarsi nella cartella backend
+docker run -d --name mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
+```
+
+| Servizio | URL |
+|----------|-----|
+| UI email (browser) | http://localhost:8025 |
+| SMTP (backend) | localhost:1025 |
+
+Stop:
+```bash
+docker stop mailhog && docker rm mailhog
+```
+
+> Se Mailhog non è in esecuzione il backend non va in errore — le email vengono solo loggate in console. Ma non potrai testare i link di verifica.
+
+---
+
+### 4. Avviare il backend Spring Boot
+
+In un terminale separato:
+
+```bash
 cd backend
 
-# Installare dipendenze Maven (opzionale, verrà fatto automaticamente)
-mvn clean install
+# Se mvn è nel PATH
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# Avviare l'applicazione
-mvn spring-boot:run
-
-# Oppure compilare e lanciare il JAR
-mvn clean package
-java -jar target/backend-1.0.0.jar
+# Su macOS con IntelliJ IDEA CE (mvn non nel PATH di default)
+"/Applications/IntelliJ IDEA CE.app/Contents/plugins/maven/lib/maven3/bin/mvn" \
+  spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-### Configurazione database
+> Aggiungi l'alias una volta sola per non riscriverlo:
+> ```bash
+> echo 'alias mvn="/Applications/IntelliJ IDEA CE.app/Contents/plugins/maven/lib/maven3/bin/mvn"' >> ~/.zshrc && source ~/.zshrc
+> ```
 
-L'applicazione legge le configurazioni del database da variabili di ambiente:
+Al primo avvio Maven scarica le dipendenze (~1-2 minuti). Flyway esegue automaticamente le migration e il `DevDataSeeder` inserisce un utente demo.
 
+Credenziali demo (già verificate, pronte per il login):
+- **Slug centro**: `demo-centro`
+- **Username**: `owner`
+- **Password**: `owner123!`
+
+Verifica:
 ```bash
-# Con Docker Postgres in esecuzione
-mvn spring-boot:run
-
-# Oppure con configurazione personalizzata
-mvn spring-boot:run -Dspring-boot.run.arguments="--DB_HOST=localhost --DB_PORT=5432 --DB_NAME=cinofilo --DB_USER=cinofilo --DB_PASSWORD=cinofilo"
+curl http://localhost:8080/api/actuator/health
+# {"status":"UP"}
 ```
 
-### Endpoint di prova
+---
 
-Una volta avviato, l'applicazione sarà disponibile su `http://localhost:8080/api`
+### 5. Avviare il frontend Angular
 
-- **Health Check**: `GET http://localhost:8080/api/health` → `{"status": "ok"}`
-- **Actuator**: `GET http://localhost:8080/api/actuator/health`
-
-### Flyway Migrations
-
-Le migrazioni del database si trovano in `src/main/resources/db/migration/`. Flyway si esegue automaticamente all'avvio dell'applicazione:
-- La baseline iniziale si trova in `V1__init.sql`
-- Per aggiungere nuove migrazioni, creare file nominati come `V<numero>__<descrizione>.sql`
-
-## Script di Avvio Rapidi
-
-### Avvio completo dello stack (Database + Backend + Frontend)
+In un altro terminale separato:
 
 ```bash
-# 1. Avviare il database PostgreSQL
-docker-compose -f infra/docker/docker-compose.yml up -d
-
-# 2. Attendere che il database sia pronto (~5 secondi)
-# 3. Avviare il backend in un terminale
-cd backend && mvn spring-boot:run
-
-# 4. Avviare il frontend in un altro terminale
-cd frontend && npm run dev
+cd frontend
+npm install        # solo la prima volta
+npm start
 ```
 
-L'applicazione sarà disponibile su:
-- **Backend API**: `http://localhost:8080/api`
-- **Frontend**: `http://localhost:4200`
+Il proxy di sviluppo (`proxy.conf.json`) instrada automaticamente `/api/*` verso `http://localhost:8080`.
 
-### Comandi di Pulizia
+---
+
+### Riepilogo URL in sviluppo
+
+| Servizio | URL |
+|----------|-----|
+| Applicazione web | http://localhost:4200 |
+| API backend | http://localhost:8080/api |
+| Health check | http://localhost:8080/api/actuator/health |
+| Mailhog (email) | http://localhost:8025 |
+| PostgreSQL | localhost:5432 |
+
+---
+
+### Test del flusso email in locale
+
+1. Aprire http://localhost:8025 (Mailhog)
+2. Registrare un nuovo account su http://localhost:4200/register
+3. L'email di verifica appare in Mailhog — copiare il link e aprirlo nel browser
+4. Dopo la verifica, fare login con le credenziali scelte
+5. Per testare il reset password: login → "Password dimenticata?" → inserire email e slug → controllare Mailhog
+
+---
+
+### Comandi di pulizia
 
 ```bash
-# Fermare e rimuovere i container Docker
-docker-compose -f infra/docker/docker-compose.yml down
+# Fermare DB (preserva i dati)
+docker compose -f infra/docker/dev/docker-compose.yml down
 
-# Reset completo del database (rimuove il volume)
-docker-compose -f infra/docker/docker-compose.yml down -v
+# Fermare DB e cancellare i dati
+docker compose -f infra/docker/dev/docker-compose.yml down -v
 
-# Pulire i build locali
+# Fermare Mailhog
+docker stop mailhog && docker rm mailhog
+
+# Pulire build Maven
 cd backend && mvn clean
-cd frontend && npm run clean 2>/dev/null || echo "No build folder"
 ```
+
+## Avvio in locale (produzione simulata)
+
+Vuoi testare l'app esattamente come si comporta in produzione, senza avviare nulla manualmente? Un solo comando avvia **DB + Backend + Frontend + MailHog** tutti containerizzati.
+
+> Per capire come funzionano i Dockerfile e il compose, leggi [docs/docker-guide.md](docs/docker-guide.md).
+
+### 1. Setup iniziale (una volta sola)
+
+```bash
+cp .env.local-prod.example .env.local-prod
+# Il file contiene già valori funzionanti — nessuna modifica necessaria per iniziare
+```
+
+### 2. Avvia tutto
+
+```bash
+docker compose \
+  --env-file .env.local-prod \
+  -f infra/docker/local-prod/docker-compose.yml \
+  up -d --build
+```
+
+Il primo avvio richiede qualche minuto perché Docker compila il backend (Maven) e il frontend (Angular). Le volte successive senza `--build` parte in pochi secondi.
+
+### 3. Servizi disponibili
+
+| Servizio | URL | Note |
+|----------|-----|------|
+| **App** | http://localhost | Frontend Angular |
+| **MailHog** | http://localhost:8025 | Leggi le email inviate dal backend |
+| **PostgreSQL** | `localhost:5433` | Connetti con DBeaver (user/pass: `cinofilo`) |
+
+> La porta del DB è **5433** (non 5432) per evitare conflitti con un eventuale postgres locale.
+
+### 4. Comandi utili
+
+```bash
+# Vedi i log in tempo reale
+docker compose -f infra/docker/local-prod/docker-compose.yml logs -f
+
+# Ricompila solo il backend dopo una modifica al codice
+docker compose --env-file .env.local-prod \
+  -f infra/docker/local-prod/docker-compose.yml \
+  up -d --build backend
+
+# Ferma tutto (i dati del DB rimangono)
+docker compose -f infra/docker/local-prod/docker-compose.yml down
+
+# Ferma tutto e cancella il DB (reset completo)
+docker compose -f infra/docker/local-prod/docker-compose.yml down -v
+```
+
+---
 
 ## Convenzioni di Sviluppo
 
@@ -458,67 +510,7 @@ centro-cinofilo/
 
 ### Come Avviare l'Ambiente Locale
 
-#### 1. Setup Iniziale
-
-```bash
-# Clonare il repository
-git clone <repo-url>
-cd centro-cinofilo
-
-# Copiare le variabili di ambiente
-cp .env.example .env
-```
-
-#### 2. Avviare PostgreSQL
-
-```bash
-# Nella radice del progetto
-docker-compose -f infra/docker/docker-compose.yml up -d
-
-# Verificare che sia in esecuzione
-docker-compose -f infra/docker/docker-compose.yml ps
-```
-
-Credenziali default:
-- Host: `localhost`
-- Port: `5432`
-- Database: `cinofilo`
-- Username: `cinofilo`
-- Password: `cinofilo`
-
-#### 3. Avviare il Backend
-
-```bash
-# Nella directory backend
-cd backend
-
-# Build e avvio
-mvn clean install
-mvn spring-boot:run
-
-# L'applicazione sarà disponibile su http://localhost:8080/api
-```
-
-Test endpoint:
-```bash
-curl http://localhost:8080/api/health
-# Risposta: {"status":"ok"}
-```
-
-#### 4. Avviare il Frontend
-
-```bash
-# Nella directory frontend
-cd frontend
-
-# Installare dipendenze (prima volta)
-npm install
-
-# Avviare il dev server
-npm run dev
-
-# L'applicazione sarà disponibile su http://localhost:4200
-```
+Vedere la sezione **[Avvio in locale (sviluppo)](#avvio-in-locale-sviluppo)** per le istruzioni complete e aggiornate.
 
 ### Regole Base di Sviluppo
 
@@ -668,14 +660,51 @@ Stack di produzione: **PostgreSQL + Spring Boot + Angular/Nginx** orchestrati co
 ```bash
 # 1. Crea il file di environment (una sola volta)
 cp .env.prod.example .env.prod
-#    ✏️  modifica .env.prod con password e JWT_SECRET reali
+#    ✏️  modifica .env.prod: imposta POSTGRES_PASSWORD, JWT_SECRET, APP_BASE_URL
+#    ✏️  aggiungi MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD per le email
 
-# 2. Build & avvio
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d --build
+# 2. Build & avvio di tutti e tre i container
+docker compose \
+  --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  -f infra/docker/prod/frontend.yml \
+  up -d --build
 
 # 3. Verifica
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod ps
+docker compose \
+  --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  -f infra/docker/prod/frontend.yml \
+  ps
 ```
+
+### Configurazione email (produzione)
+
+Il backend usa SMTP per inviare email di verifica e reset password. La soluzione più semplice è un account Gmail dedicato.
+
+**1. Creare un account Gmail** (es. `noreply.miocentro@gmail.com`)
+
+**2. Abilitare l'autenticazione a due fattori**
+- Vai su [myaccount.google.com](https://myaccount.google.com) → Sicurezza → Verifica in due passaggi → Attiva
+
+**3. Creare una App Password**
+- Sempre in Sicurezza → cerca "App password" → seleziona "Posta" → Genera
+- Copia i 16 caratteri generati (es. `abcd efgh ijkl mnop`)
+
+**4. Aggiungere le variabili in `.env.prod`**
+```env
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=noreply.miocentro@gmail.com
+MAIL_PASSWORD=abcdefghijklmnop
+MAIL_FROM=noreply.miocentro@gmail.com
+```
+
+> Limite Gmail: ~500 email/giorno. Per volumi maggiori usare Brevo, Resend o SendGrid (tutti con piano gratuito).
+
+---
 
 ### URL
 
@@ -689,20 +718,48 @@ docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod ps
 
 ```bash
 # Tutti i servizi
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f
+docker compose \
+  --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  -f infra/docker/prod/frontend.yml \
+  logs -f
 
 # Solo backend
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod logs -f backend
+docker compose --env-file .env.prod -f infra/docker/prod/backend.yml logs -f backend
+```
+
+### Avviare/fermare un singolo servizio
+
+```bash
+# Solo database (es. per manutenzione)
+docker compose --env-file .env.prod -f infra/docker/prod/db.yml up -d
+
+# Riavviare solo il backend dopo un deploy
+docker compose --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  up -d --build backend
 ```
 
 ### Stop & pulizia
 
 ```bash
 # Stop (preserva volumi)
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down
+docker compose \
+  --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  -f infra/docker/prod/frontend.yml \
+  down
 
 # Stop + cancella volumi (⚠️  dati persi)
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod down -v
+docker compose \
+  --env-file .env.prod \
+  -f infra/docker/prod/db.yml \
+  -f infra/docker/prod/backend.yml \
+  -f infra/docker/prod/frontend.yml \
+  down -v
 ```
 
 ---

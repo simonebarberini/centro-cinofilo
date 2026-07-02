@@ -57,10 +57,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Clean database
-        customerRepository.deleteAll();
-        appUserRepository.deleteAll();
-        tenantRepository.deleteAll();
+        // Database is wiped by AbstractPostgresIT#cleanDatabase before each test.
 
         // Create tenant A
         tenantA = Tenant.builder()
@@ -79,6 +76,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .capacityBoxes(5)
                 .build();
         tenantB = tenantRepository.save(tenantB);
+        activateBaseModule(tenantA.getId(), tenantB.getId());
 
         // Create user for tenant A
         AppUser userA = AppUser.builder()
@@ -87,6 +85,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userA);
 
@@ -97,6 +96,7 @@ class CustomerControllerIT extends AbstractPostgresIT {
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .role(Role.TENANT_OWNER)
                 .enabled(true)
+                .emailVerified(true)
                 .build();
         appUserRepository.save(userB);
 

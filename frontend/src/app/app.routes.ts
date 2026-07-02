@@ -4,6 +4,11 @@ import { MainLayoutComponent } from './layout/main-layout.component';
 
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent) },
+  { path: 'register', loadComponent: () => import('./pages/register/register.component').then(m => m.RegisterComponent) },
+  { path: 'register-success', loadComponent: () => import('./pages/register-success/register-success.component').then(m => m.RegisterSuccessComponent) },
+  { path: 'verify-email', loadComponent: () => import('./pages/verify-email/verify-email.component').then(m => m.VerifyEmailComponent) },
+  { path: 'forgot-password', loadComponent: () => import('./pages/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent) },
+  { path: 'reset-password', loadComponent: () => import('./pages/reset-password/reset-password.component').then(m => m.ResetPasswordComponent) },
   {
     path: '',
     component: MainLayoutComponent,
@@ -14,6 +19,7 @@ export const routes: Routes = [
       { path: 'customers/:customerId/dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
       { path: 'dogs', loadComponent: () => import('./pages/dogs/dogs.component').then(m => m.DogsComponent) },
       { path: 'bookings', loadComponent: () => import('./pages/bookings/bookings.component').then(m => m.BookingsComponent) },
+      { path: 'quick-booking', loadComponent: () => import('./pages/quick-booking/quick-booking.component').then(m => m.QuickBookingComponent) },
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
       { path: '', redirectTo: 'calendar', pathMatch: 'full' }
     ]

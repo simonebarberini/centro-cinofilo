@@ -6,6 +6,9 @@ import it.cinofilo.customer.CustomerRepository;
 import it.cinofilo.dogs.dto.CreateDogRequest;
 import it.cinofilo.dogs.dto.DogResponse;
 import it.cinofilo.dogs.dto.UpdateDogRequest;
+import it.cinofilo.domain.entitlement.Entitlements;
+import it.cinofilo.entitlements.EntitlementService;
+import it.cinofilo.entitlements.EntitlementViolationException;
 import it.cinofilo.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ public class DogService {
 
     private final DogRepository dogRepository;
     private final CustomerRepository customerRepository;
+    private final EntitlementService entitlementService;
 
     /**
      * Create a new dog for a customer.
@@ -35,6 +39,15 @@ public class DogService {
     public DogResponse create(CreateDogRequest request) {
         UUID tenantId = TenantContext.getTenantId();
         log.debug("Creating dog for customer {} in tenant {}", request.getCustomerId(), tenantId);
+
+        if (!entitlementService.isEnabled(tenantId, Entitlements.DOG_MANAGEMENT.key())) {
+            throw new EntitlementViolationException("Dog management is not enabled for this tenant");
+        }
+        int quota = entitlementService.getQuota(tenantId, Entitlements.MAX_DOGS_PER_TENANT.key());
+        if (quota > 0 && dogRepository.countByTenantId(tenantId) >= quota) {
+            throw new EntitlementViolationException(
+                    "Dog quota exceeded: maximum " + quota + " dogs allowed");
+        }
 
         // Verify customer exists and belongs to current tenant
         Customer customer = customerRepository.findByIdAndTenantId(request.getCustomerId(), tenantId)

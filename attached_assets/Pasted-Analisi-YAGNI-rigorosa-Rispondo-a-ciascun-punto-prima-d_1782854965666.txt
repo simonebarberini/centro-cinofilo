@@ -1,0 +1,108 @@
+Analisi YAGNI rigorosa. Rispondo a ciascun punto prima di riscrivere la roadmap.
+
+Analisi dei componenti da rivalutare
+Domain Events — nessun consumer reale fino a M11
+Nel piano attuale, gli eventi vengono introdotti in M8 ma il loro unico consumer è il listener di cache invalidation in M11. Senza cache, il listener non esiste. Senza listener, l'evento viene emesso nel vuoto.
+
+Conclusione: gli eventi sono un'infrastruttura al servizio della cache, non viceversa. Se la cache è YAGNI, gli eventi lo sono ancora di più. Si introducono insieme alla cache, nel momento in cui la cache esiste e ha bisogno di invalidazione esplicita.
+
+Trigger per l'introduzione: aggiunta della cache Caffeine.
+
+Cache Caffeine — nessun problema prestazionale documentato
+L'EntitlementService esegue 2–3 query SQL per chiamata. A 20–50 tenant, con attivazione manuale dei moduli, il numero di chiamate a questo service per minuto è nell'ordine delle decine. PostgreSQL gestisce migliaia di query semplici al secondo. Non c'è un problema da risolvere.
+
+La cache porta con sé: una dipendenza (caffeine), logica di invalidazione, domain events come meccanismo di notifica, un test separato per la coerenza cache/DB. Quattro componenti per risolvere zero problemi.
+
+Conclusione: YAGNI. La cache si introduce quando il profiling rivela che EntitlementService è un collo di bottiglia reale — non prima.
+
+Trigger per l'introduzione: numero di tenant significativo (>500) o misurazione di latenza degradata sotto carico.
+
+@EnableScheduling e TrialExpirationJob — nessun cliente in trial
+Il job risolve un problema operativo reale (trial che non scadono automaticamente) ma solo quando esistono clienti in trial. Per i primi 20–50 tenant, l'attivazione dei trial è manuale — e la cancellazione manuale è ugualmente accettabile. Un admin che gestisce 10 trial sa quando scadono.
+
+Tenere il TRIAL come stato dell'enum e nel DB non costa nulla. Aggiungere il job quando la prima coorte di trial rende il processo manuale insostenibile è la scelta corretta.
+
+Conclusione: YAGNI. Spostare in "fase operativa 1B", fuori dalla roadmap tecnica V1.
+
+Trigger per l'introduzione: primo batch di tenant in trial (indicativamente >5 trial contemporaneamente, o primo trial self-service).
+
+Conseguenza su M0: con Caffeine e @EnableScheduling rimossi, M0 non ha contenuto. Viene eliminato. Le dipendenze vengono aggiunte nel milestone che le richiede per primo.
+
+TenantModuleFactory in M8 separato da SubscriptionService
+La Factory è ~30 righe di logica pura, usata esclusivamente da SubscriptionService. Non ha senso introdurla in un milestone dedicato prima del service che la usa.
+
+Conclusione: Factory e SubscriptionService si introducono nello stesso milestone. Non è una perdita di atomicità — sono due classi dello stesso bounded context con un'unica responsabilità condivisa (attivazione di un modulo).
+
+Roadmap V1 Rivista — Versione Minima
+#	Nome	Migration	Dipendenze
+M1	Shared kernel: typed Entitlement	—	—
+M2	tenant.billing_email	V10	M1
+M3	Module entity + repository	V11	M2
+M4	ModuleEntitlement + colonne tipate	V12	M3
+M5	Seeding catalogo BASE + ModuleService	V13	M4
+M6	Catalog Admin API (read + status change)	—	M5
+M7	TenantModule entity + repository	V14	M6
+M8	SubscriptionService + Factory + INV-1 + data migration + Admin API write	V15	M7
+M9	AdminGrant entity + repository	V16	M8
+M10	EntitlementService (senza cache, senza eventi) + Admin read API	—	M9
+M11	AdminGrantService + Admin API write	—	M10
+M12	Enforcement: quota hook in DogService e AppUser	—	M11
+Da 15 a 12 milestone. Eliminati: M0, M8-eventi, M13. Accorpati: vecchi M8+M9 → nuovo M8.
+
+Milestone che cambiano in modo sostanziale
+Le milestone M1–M7 e M9 rimangono identiche alla versione precedente nei contenuti. Le variazioni significative sono tre:
+
+M8 (accorpamento) — SubscriptionService + Factory + tutto il Subscription BC
+Obiettivo: il Subscription BC è completamente operativo in un unico commit. La Factory viene introdotta qui, usata subito, testata nel contesto reale.
+
+Cosa cambia rispetto alla versione precedente:
+
+La Factory non ha un milestone dedicato — entra qui
+Nessun domain event: SubscriptionService non pubblica eventi. Le operazioni persistono e basta. Se l'EntitlementService ha bisogno di dati freschi, interroga direttamente il DB.
+Il rischio di coerenza è accettabile: senza cache, non c'è stato da invalidare. L'EntitlementService legge sempre dati attuali.
+Contenuto invariato: SubscriptionService con operazioni activate/suspend/cancel/reactivate, INV-1 guard su cancel, migration V15 per attivare BASE sui tenant esistenti, Admin API write, test unitari e di integrazione su INV-1 e INV-3.
+
+M10 (semplificato) — EntitlementService senza cache e senza eventi
+Obiettivo: rispondere alla domanda "questo tenant può fare X?" interrogando direttamente il database. Nessuna infrastruttura aggiuntiva.
+
+Cosa cambia rispetto alla versione precedente:
+
+Rimossi: EntitlementCache, EntitlementEventListener, dipendenza Caffeine, tutta la logica di invalidazione
+Rimane: la chain di risoluzione a tre passi (AdminGrant → TenantModule/ModuleEntitlement → default), l'interfaccia tipizzata, il Admin read API
+La chain senza cache:
+
+isEnabled(tenantId, BooleanEntitlement):
+  1. Query DB: admin_grant attivo per (tenantId, key)  → se trovato, ritorna bool_value
+  2. Query DB: tenant_module ACTIVE/TRIAL + module_entitlement per (tenantId, key) → OR dei bool_value
+  3. Default: false
+getQuotaLimit(tenantId, QuotaEntitlement):
+  1. Query DB: admin_grant attivo per (tenantId, key)  → se trovato, ritorna quota_value
+  2. Query DB: SUM(quota_value) da tenant_module + module_entitlement per (tenantId, key)
+  3. Default: 0
+
+Test unitari: identici alla versione precedente ma senza EntitlementCacheTest.
+
+Test di integrazione: identici ma senza il test di cache invalidation.
+
+Nota per il futuro: quando la cache viene aggiunta, l'interfaccia pubblica di EntitlementService non cambia. L'EntitlementBundle può essere introdotto come optimization interna senza impatto sui caller.
+
+M12 (invariato nei contenuti, rinumerato)
+Identico alla versione precedente. Gli enforcement hook in DogService e nella creazione di utenti staff chiamano EntitlementService che fa query dirette. Il comportamento è corretto — solo leggermente meno efficiente rispetto a una versione con cache, e questo è esattamente il trade-off accettato.
+
+Componenti rinviati e loro trigger
+Componente	Rinviato	Trigger per introduzione
+Caffeine + EntitlementCache	Post V1	Profiling mostra EntitlementService come bottleneck
+Domain Events (TenantModuleActivated, ecc.)	Con cache	Quando la cache richiede invalidazione esplicita
+@EnableScheduling	Con il primo job	Prima o insieme a TrialExpirationJob
+TrialExpirationJob	Post V1	Primo batch di trial contemporanei (>5) o trial self-service
+EntitlementBundle (value object cache)	Con cache	Come ottimizzazione interna, nessun impatto sull'interfaccia
+Risposta alla domanda di fondo
+La roadmap minima produce un sistema in produzione con:
+
+Catalogo modulare gestibile via API
+Attivazione e disattivazione moduli per tenant
+Concessioni amministrative (AdminGrant) con scadenza e revoca
+Risoluzione degli entitlement con query dirette
+Enforcement delle quote nei service esistenti
+Tutte le invarianti di dominio garantite (INV-1, INV-2, INV-3)
+Tutto ciò senza cache, senza eventi, senza scheduler, senza Caffeine — componenti che entrano esattamente quando producono valore reale, non un commit prima.

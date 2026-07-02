@@ -1,18 +1,28 @@
 spring:
   application:
     name: centro-cinofilo-backend-dev
-  
   jpa:
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         use_sql_comments: true
-  
   flyway:
     enabled: true
     clean-disabled: false
     baseline-on-migrate: true
+  # Mail – dev usa Mailhog (docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog)
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 logging:
   level:
@@ -24,7 +34,62 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
-# JWT Configuration for DEV
+# JWT — dev-only secret. NOT for production use.
+# Must be at least 64 bytes (512 bits) for HS512. Change this before any real deployment.
 jwt:
-  secret: dev-secret-key-minimum-256-bits-for-hs256-algorithm-change-in-production
+  secret: dev-only-secret-key-for-local-development-not-for-production-hs512-64b
   expiration-ms: 28800000
+
+app:
+  base-url: http://localhost:4200
+  cors:
+    allowed-origins:
+      - http://localhost:4200
+
+# Dev: very generous limits so development is never interrupted by rate limiting.
+# Production limits are defined in application.yml.
+rate-limit:
+  enabled: true
+  policies:
+    LOGIN:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 500
+          refill-tokens: 500
+          refill-period-minutes: 1
+        - key-type: TENANT_USERNAME
+          capacity: 500
+          refill-tokens: 500
+          refill-period-minutes: 1
+    REGISTER:
+      buckets:
+        - key-type: IP
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    FORGOT_PASSWORD:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+        - key-type: TENANT_EMAIL
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    RESEND_VERIFICATION:
+      buckets:
+        - key-type: IP_TENANT
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+        - key-type: TENANT_EMAIL
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    RESET_PASSWORD:
+      buckets:
+        - key-type: IP
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1

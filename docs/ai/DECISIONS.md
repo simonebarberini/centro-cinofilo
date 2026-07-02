@@ -143,3 +143,40 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 **Conseguenze:**
 - Alcune aree coscientemente fuori scope attuale: waitlist, overbooking controllato, staff multipli, audit log
 - Il processo obbligatorio per ogni modifica è: discuti → approva → implementa → testa → commit
+
+---
+
+## ADR-009 — Cancellazione subscription come transizione di stato via SubscriptionAdminController dedicato
+
+**Stato:** implementato
+
+**Contesto:** Il platform backoffice (ADMIN_APP) deve poter disattivare un modulo attivo o in trial per un tenant. `SubscriptionService.cancel()` esiste già nel dominio; mancava solo la superficie REST.
+
+**Problema:** Come esporre l'operazione di cancellazione — su quale controller, con quale metodo HTTP, e con quale semantica della risorsa?
+
+**Decisione:**
+- Nuovo controller dedicato `SubscriptionAdminController` su `/admin/subscriptions`
+- Endpoint: `POST /admin/subscriptions/{tenantId}/{moduleKey}/cancel`
+- Risposta: `204 No Content`
+- Il controller delega interamente a `SubscriptionService.cancel()` senza aggiungere logica
+
+**Motivazione:**
+
+*Controller separato.* `TenantAdminController` è read-only per design: lista e dettaglio tenant, senza side effect. `AdminGrantController` gestisce l'attivazione con audit (creazione di `AdminGrant`). La cancellazione è una terza responsabilità distinta — una transizione di stato sul `TenantModule` senza record di audit. Tenerla in un controller dedicato rispetta la separazione delle responsabilità e mantiene ogni controller focalizzato su un'unica area del dominio.
+
+*POST invece di DELETE.* `DELETE /admin/tenants/{tenantId}/modules/{moduleKey}` sarebbe semanticamente scorretto: nel modello di dominio la risorsa `TenantModule` non viene rimossa — il suo stato transisce da `ACTIVE` o `TRIAL` a `CANCELLED`. Il record rimane, l'occupazione del moduleKey nella history esiste. `DELETE` implica distruzione della risorsa; `POST .../cancel` esprime esplicitamente l'intenzione come comando di dominio. Questo allineamento tra HTTP e semantica di business riduce l'ambiguità per chiunque legga l'API e facilita l'aggiunta futura di audit sulla transizione stessa.
+
+*Idempotenza della delega.* `SubscriptionService.cancel()` è idempotente: se il modulo è già `CANCELLED` o non esiste per quel tenant, non fa nulla senza errori. Il controller restituisce sempre `204` — nessun side effect visibile differenzia il caso "già cancellato" da "appena cancellato". Questo è intenzionale: l'ADMIN_APP non deve distinguere i due scenari, solo garantire che lo stato finale sia `CANCELLED`.
+
+**Alternative scartate:**
+
+`DELETE /admin/tenants/{tenantId}/modules/{moduleKey}` — scartato perché semanticamente errato: `DELETE` implica rimozione della risorsa dal sistema, non transizione di stato. Confonde chi legge l'API e rende difficile l'aggiunta di audit log futuri.
+
+`PATCH /admin/tenants/{tenantId}/modules/{moduleKey}` con body `{status: "CANCELLED"}` — scartato perché espone lo stato interno del dominio come campo direttamente scrivibile. Il dominio non deve accettare stati arbitrari dall'esterno; deve ricevere comandi (`cancel`, `activate`) e gestire internamente la transizione valida.
+
+`POST /admin/grants/{tenantId}/cancel` su `AdminGrantController` — scartato perché i grant sono record di audit immutabili che documentano l'attivazione. Cancellare un modulo non annulla il grant — sono concetti separati. Mescolarli in `AdminGrantController` violerebbe la responsabilità singola del controller.
+
+**Conseguenze:**
+- La surface REST del backoffice cresce in modo ordinato: lettura (`TenantAdminController`), attivazione con audit (`AdminGrantController`), cancellazione (`SubscriptionAdminController`)
+- Aggiungere un audit log per la cancellazione in futuro richiede solo di estendere `SubscriptionService.cancel()` o il controller — senza modificare altri controller
+- `SubscriptionAdminController` non contiene logica di dominio: delega a `SubscriptionService` e non conosce `TenantModule` direttamente

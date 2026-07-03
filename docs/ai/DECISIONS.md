@@ -394,3 +394,40 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - `TenantInfoTabComponent` non ha dipendenze da `TenantAdminService`: qualunque futura richiesta di aggiungere una chiamata diretta andrà trattata come una deviazione dal pattern stabilito, non come la norma
 - Se `TenantDetailState` venisse rimosso in una futura Architecture Review (nota di debito tecnico in ADR-014), il tab Info sarebbe il primo componente da aggiornare, insieme alla shell
 - Il tab non prevede alcuno stato locale di editing: quando la modifica del tenant sarà approvata come milestone propria, sarà verosimilmente un componente separato (es. `TenantEditFormComponent`) o un'estensione esplicitamente approvata di questo tab
+
+---
+
+## ADR-016 — Tenant Modules Tab: join lato frontend tra catalogo e moduli del tenant, `SubscriptionAdminService` come unico punto di accesso HTTP per le sottoscrizioni
+
+**Stato:** implementato
+
+**Contesto:** P9 introduce il secondo tab della shell tenant (ADR-014), quello che mostra i moduli disponibili per il tenant e ne permette l'attivazione (`grant`) o la disattivazione (`cancel`). A differenza del tab Info (ADR-015), qui il dato non è già disponibile in `TenantDetailState`: servono due fonti distinte, il catalogo globale dei moduli (`GET /admin/catalog`, già esposto da `CatalogAdminService`) e lo stato dei moduli per il tenant specifico (`GET /admin/tenants/{tenantId}/modules`, finora non richiamato dal frontend).
+
+**Decisione:**
+1. `TenantModulesTabComponent` legge `tenantId` dalla route padre (`route.parent.snapshot.paramMap`), non da `TenantDetailState`: lo stato condiviso resta la fonte del *tenant* già caricato dalla shell (nome, slug, ecc. — usati dall'header comune), non delle informazioni sui moduli, che appartengono a un dominio diverso (sottoscrizioni) e non sono mai stati parte di quello stato.
+2. Il componente carica in parallelo, con `forkJoin`, il catalogo (`CatalogAdminService.getAll()`, esistente, invariato) e i moduli del tenant (nuovo `SubscriptionAdminService.getTenantModules()`), poi unisce i due risultati con un mapping esplicito (`buildViewModel`) in un modello di vista (`TenantModuleViewModel`) consumato dal template.
+3. `SubscriptionAdminService` (nuovo, `providedIn: 'root'`) è l'unico service che parla con gli endpoint `/admin/tenants/{tenantId}/modules`, `/admin/grants` e `/admin/subscriptions/{tenantId}/{moduleKey}/cancel`. Nessuna chiamata HTTP relativa a moduli/sottoscrizioni del tenant viene fatta da `TenantAdminService` o da `CatalogAdminService`.
+4. Dopo `grant()` o `cancel()`, il componente richiama solo `SubscriptionAdminService.getTenantModules()` e ricostruisce il modello di vista riusando il catalogo già in memoria (`this.catalog`, popolato al primo caricamento): non richiama né `CatalogAdminService.getAll()` né `TenantAdminService.getById()`.
+
+**Motivazione:**
+
+*Perché Catalog e Tenant Modules vengono caricati separatamente.* Sono due risorse con ciclo di vita indipendente: il catalogo è globale e cambia raramente (nuovi moduli, deprecazioni), lo stato dei moduli di un tenant cambia a ogni grant/cancel. Il backend le espone già come due endpoint distinti su due controller distinti (`CatalogAdminController`, `TenantAdminController`) e non esiste, né viene richiesto in questa milestone, un endpoint che le unisca lato server. Caricarle separatamente rispetta il contratto REST esistente senza modificarlo, come richiesto esplicitamente dalla milestone.
+
+*Perché il join avviene nel frontend.* Con il contratto attuale è l'unica opzione compatibile col vincolo "nessuna modifica al backend, al dominio o ai controller esistenti": introdurre un endpoint aggregato lato server sarebbe la soluzione più pulita a regime, ma richiederebbe un nuovo DTO e una nuova rotta, entrambi fuori scope. Il join è realizzato con una `Map` chiave-valore sui `moduleKey` del catalogo e uno `stream`/`map` esplicito in `buildViewModel()`, non nel template: l'HTML resta binding puro e condizioni su campi già calcolati (`m.tenantStatus`), senza logica di trasformazione.
+
+*Perché dopo grant/cancel viene ricaricata solo la lista dei moduli del tenant.* Un'operazione di grant o cancel modifica esclusivamente lo stato di sottoscrizione del tenant, non il catalogo (i moduli disponibili restano gli stessi) né i dati anagrafici del tenant (nome, slug, ecc., già in `TenantDetailState` e non toccati da questa azione). Ricaricare anche catalogo e dettaglio tenant sarebbe una chiamata di rete inutile ad ogni azione, e per il dettaglio tenant significherebbe anche violare la garanzia di caricamento unico stabilita in ADR-014. Il catalogo resta quindi in cache locale (`this.catalog`) tra un caricamento e l'altro, e solo i moduli del tenant vengono richiesti di nuovo.
+
+*Perché `SubscriptionAdminService` contiene tutta la logica HTTP relativa alle sottoscrizioni.* `GET /admin/tenants/{tenantId}/modules`, `POST /admin/grants` e `POST /admin/subscriptions/{tenantId}/{moduleKey}/cancel` sono, dal punto di vista del backend, esposti da due controller diversi (`TenantAdminController` per la lettura, `AdminGrantController` e `SubscriptionAdminController` per le mutazioni), ma rappresentano concettualmente un unico dominio applicativo: "quali moduli sono attivi per questo tenant, e come cambiano". Raggruppare le tre chiamate in un solo service frontend allinea il confine del service al dominio di business (le sottoscrizioni), non alla frammentazione dei controller REST lato server, evitando che la stessa informazione (stato modulo/tenant) sia raggiungibile da più service diversi nel frontend.
+
+**Alternative scartate:**
+
+*Esporre `getTenantModules()` da `TenantAdminService`, dato che l'URL è sotto `/admin/tenants/{tenantId}`* — scartato perché avrebbe sparso la logica delle sottoscrizioni su due service (`TenantAdminService` per la lettura, `SubscriptionAdminService` per grant/cancel), rendendo meno ovvio dove cercare "tutta la logica di sottoscrizione" e contraddicendo il requisito esplicito della milestone di concentrarla in un unico service.
+
+*Fare il merge di catalogo e moduli del tenant nel template con un pipe custom* — scartato perché sposterebbe la logica di join fuori da un punto testabile e centralizzato (`buildViewModel`), in violazione del requisito esplicito "nessuna trasformazione complessa nell'HTML".
+
+*Ricaricare l'intero tab (`loadAll()`, incluso il catalogo) dopo ogni grant/cancel, per semplicità implementativa* — scartato perché contraddice esplicitamente il requisito della milestone e introduce una chiamata di rete ridondante ad ogni azione, senza alcun beneficio: il catalogo non cambia mai come effetto di un grant o di una cancel.
+
+**Conseguenze:**
+- `SubscriptionAdminService` diventa il punto di estensione naturale per qualunque futura operazione sulle sottoscrizioni (es. Grant History in una milestone futura): andrà aggiunta lì, non in un nuovo service parallelo
+- Il modello di vista `TenantModuleViewModel` è locale al tab (`tenants/tenant-module-view.model.ts`): se in futuro altri componenti avessero bisogno della stessa vista aggregata, andrà valutato lo spostamento in una posizione condivisa, non duplicato
+- La cache locale del catalogo (`this.catalog`) vive solo per la durata di vita del componente tab: alla navigazione fuori e dentro il tab, il catalogo viene ricaricato da capo: comportamento accettato, coerente con l'assenza di uno stato condiviso per i moduli (a differenza del tenant, che resta in `TenantDetailState`)

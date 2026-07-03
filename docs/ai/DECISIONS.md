@@ -221,3 +221,34 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - Le rotte admin sono un chunk separato: bundle tenant non contaminato da codice admin
 - Aggiungere nuove sezioni admin (P4–P9) richiede modifiche solo a `admin.routes.ts` — zero impatto su `app.routes.ts` e sull'app tenant
 - `AdminLayoutComponent` non potrà mai accedere accidentalmente a dati tenant-scoped: nessun servizio tenant è importato
+
+---
+
+## ADR-011 — Platform Dashboard come homepage del backoffice, introdotta prima delle feature operative
+
+**Stato:** implementato
+
+**Contesto:** Il Platform Backoffice ha ora un'infrastruttura di routing e layout (ADR-010), ma nessuna pagina di destinazione. La sidebar prevede una voce Dashboard, Tenant, Catalog. Le due funzionalità operative (gestione tenant, catalogo moduli) richiedono ancora più milestone (P5–P9).
+
+**Problema:** Cosa deve mostrare l'utente `ADMIN_APP` quando accede a `/admin` prima ancora che le funzionalità operative siano complete? Serve una destinazione di default coerente con la struttura a sidebar già approvata.
+
+**Decisione:** Introdurre `DashboardComponent` come homepage del backoffice, raggiungibile su `/admin/dashboard`, con redirect automatico da `/admin` (path vuoto) a `/admin/dashboard`. Il contenuto in questa milestone è limitato a: titolo, descrizione testuale del ruolo del backoffice, e un'area a griglia strutturalmente pronta per le future card di riepilogo — senza dati, senza chiamate HTTP, senza servizi Angular.
+
+**Motivazione:**
+
+*Perché una homepage prima delle feature operative.* La Dashboard non è una feature nel senso stretto — è il punto di atterraggio che rende l'area `/admin` navigabile fin da subito. Senza di essa, `/admin` risulterebbe una rotta vuota o richiederebbe di saltare direttamente alla prima feature operativa disponibile (Tenant List), il che accoppierebbe la struttura di navigazione all'ordine di sviluppo delle milestone. Con la Dashboard come default, l'ordine di implementazione delle feature (P5 Tenant, P6 Catalog, future P7+) resta indipendente dalla struttura del routing.
+
+*Perché nessun dato reale in questa milestone.* Le metriche di piattaforma (numero tenant, moduli attivi, trial in scadenza) dipendono da endpoint che non esistono ancora e da decisioni di aggregazione non ancora prese (es. quali metriche contano, con quale frequenza di refresh). Costruire card con dati reali ora significherebbe anticipare milestone successive e introdurre servizi Angular con chiamate HTTP prima che il loro contratto sia stato discusso e approvato — in violazione del principio YAGNI del progetto (ADR-008). L'area a griglia esiste già nel markup proprio per non richiedere un refactor del layout quando le card verranno aggiunte.
+
+**Alternative scartate:**
+
+*Redirect diretto da `/admin` a `/admin/tenants`* (saltare la dashboard) — scartato perché lega la homepage della piattaforma alla prima feature operativa sviluppata, invece che a un concetto stabile e duraturo. Se in futuro Tenant smettesse di essere la prima voce di menu, il redirect andrebbe riscritto.
+
+*Card con dati finti (mock/lorem ipsum)* — scartato esplicitamente dal requisito "nessun placeholder tecnico": dati finti in produzione comunicano funzionalità inesistenti e possono confondere l'amministratore di piattaforma sul reale stato del sistema.
+
+*Rimandare la Dashboard a dopo Tenant e Catalog* — scartato perché la sidebar è già stata approvata con Dashboard come prima voce (ADR-010): posticiparla lascerebbe un link morto in un'interfaccia già visibile all'utente ADMIN_APP.
+
+**Conseguenze:**
+- `/admin` e `/admin/dashboard` sono equivalenti per l'utente; la sidebar punta esplicitamente a `/admin/dashboard`
+- Quando le metriche di piattaforma saranno definite (numero tenant, subscription attive, ecc.), si aggiungeranno componenti card dentro l'area già presente in `dashboard.component.html`, senza toccare il routing
+- `DashboardComponent` resta senza `constructor` e senza injection finché non verrà introdotto un servizio dedicato alle metriche — nessuna dipendenza da rimuovere in seguito

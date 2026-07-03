@@ -474,3 +474,38 @@ Esplorando il dominio per implementare il bootstrap è emerso un vincolo esisten
 - Ogni ambiente (dev, staging, produzione) deve configurare `PLATFORM_ADMIN_USERNAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` (e opzionalmente `PLATFORM_ADMIN_TENANT_NAME`/`_SLUG`) prima del primo avvio, esattamente come già avviene per `JWT_SECRET`
 - Il tenant tecnico "platform" comparirà nelle liste tenant del backoffice stesso (es. Tenant List, P6) come un tenant a tutti gli effetti: non è nascosto o filtrato. Un eventuale filtro per escluderlo dalle viste cliente-facing non è nello scope di questa milestone e andrà valutato solo se diventa un problema concreto d'uso
 - Il bootstrap non gestisce la rotazione della password: se cambiata manualmente dall'admin dopo il primo login, resta tale ad ogni riavvio successivo, perché il controllo di esistenza impedisce qualunque sovrascrittura
+
+---
+
+## ADR-018 — Separazione Surefire/Failsafe: `mvn test` esegue solo gli Unit Test, `mvn verify` esegue anche gli Integration Test
+
+**Stato:** implementato
+
+**Contesto:** Il `pom.xml` configurava `maven-surefire-plugin` con un `<includes>` esplicito che forzava l'esecuzione, nella stessa fase (`test`), sia degli Unit Test (`**/*Test.java`) sia degli Integration Test (`**/*IT.java`), questi ultimi estendenti tutti `AbstractPostgresIT`, che avvia un container PostgreSQL via Testcontainers in un blocco statico. Non esisteva alcuna separazione di fase: `mvn test` e `mvn clean install` eseguivano sempre entrambe le categorie insieme, rendendo impossibile eseguire rapidamente i soli Unit Test o distinguere, dal solo comando eseguito, un fallimento di logica applicativa da un fallimento dell'infrastruttura di test.
+
+**Analisi eseguita prima di qualsiasi modifica.** Prima di toccare `pom.xml`, è stata condotta un'analisi completa di tutti i 101 metodi di test falliti su 17 classi (`*IT.java` + `TenantContextIntegrationTest`, quest'ultima con naming non standard ma estendente anch'essa `AbstractPostgresIT`):
+- Tutte le 17 classi estendono `AbstractPostgresIT`, la cui inizializzazione statica (`postgresContainer.start()`) avviene **prima** di qualunque bootstrap di Spring.
+- L'esecuzione isolata di una singola classe (`AuthControllerIT`) con log completo mostra la causa radice reale: `com.github.dockerjava.api.exception.InternalServerErrorException: ... error mounting "sysfs" to rootfs at "/sys": ... operation not permitted`, generato dal tentativo di avviare il container Ryuk (reaper di Testcontainers) — il sandbox Replit impedisce il mount di `sysfs` richiesto dal container, per policy di sicurezza dell'ambiente containerizzato stesso.
+- Questo fallimento genera `ExceptionInInitializerError` sulla prima classe `*IT` eseguita; poiché la JVM marca la classe come "erronea" dopo un fallimento di inizializzazione statica, ogni classe successiva che estende `AbstractPostgresIT` fallisce con `NoClassDefFoundError: Could not initialize class it.cinofilo.AbstractPostgresIT` — stesso identico root cause, propagato meccanicamente, non un fallimento indipendente per ciascuna classe.
+- Verifica empirica su tutte le 101 esecuzioni (`mvn clean verify` dopo la riconfigurazione, vedi sotto): **101/101 falliscono con lo stesso `Caused by: org.testcontainers.containers.ContainerLaunchException: Container startup failed for image testcontainers/ryuk:0.5.1`.** Nessuna eccezione applicativa (assertion fallita, bean mancante, errore di validazione, ecc.) tra i 101 fallimenti.
+- I 106 Unit Test (nessuno dei quali estende `AbstractPostgresIT` o richiede Docker) passano tutti, sia isolati sia nella stessa run.
+
+**Conclusione dell'analisi:** tutti i fallimenti riscontrati dipendono esclusivamente dall'indisponibilità di Docker/Testcontainers in questo sandbox. Nessuna regressione di codice introdotta dalle milestone precedenti (incluso il Platform Admin Bootstrap, ADR-017). Di conseguenza, come da criterio concordato, non è stato modificato alcun codice applicativo: si è proceduto solo alla riconfigurazione della build.
+
+**Decisione:** Separazione standard Maven Surefire/Failsafe:
+- `maven-surefire-plugin` (fase `test`) esclude esplicitamente `**/*IT.java` e `**/*IntegrationTest.java` → `mvn test` (e quindi anche `mvn clean install`, che si ferma alla fase `package`) esegue **solo** i 106 Unit Test.
+- `maven-failsafe-plugin` (fasi `integration-test` + `verify`, tramite le sue goal standard) include `**/*IT.java`, `**/*ITCase.java` (pattern standard failsafe) e, esplicitamente, `**/*IntegrationTest.java` per coprire `TenantContextIntegrationTest`, che non segue la convenzione di naming `*IT` ma è a tutti gli effetti un test di integrazione (estende `AbstractPostgresIT`, richiede Docker). Nessuna classe è stata rinominata: si è preferito estendere i pattern di `<includes>` piuttosto che toccare file di test esistenti, per il principio "nessuna modifica al codice se il fallimento è solo ambientale".
+- Chi esegue `mvn verify` (locale con Docker, o CI) continua a eseguire **sia** gli Unit Test sia tutti gli Integration Test, con lo stesso comportamento di sempre: nessuna modifica per chi ha Docker disponibile.
+
+**Motivazione:**
+
+*Perché Surefire/Failsafe e non una soluzione custom (profili Maven, tag JUnit, script di wrapping).* È la convenzione Maven standard per questa esatta distinzione (unit vs integration test), supportata nativamente dallo `spring-boot-starter-parent` (che già gestisce le versioni di entrambi i plugin in `pluginManagement`, nessuna versione da fissare manualmente). Alternative come i profili Maven o i tag JUnit 5 (`@Tag`) avrebbero richiesto comunque una configurazione equivalente dei plugin di test, aggiungendo complessità senza benefici: la distinzione naming-based (`*Test` vs `*IT`) è già quella adottata dal progetto.
+
+*Perché non è un workaround per Replit.* Il comportamento di `mvn verify` è identico ovunque: esegue sempre tutti gli Integration Test, con o senza Docker disponibile. In un ambiente con Docker (locale, CI) `mvn verify` passa; in questo sandbox fallisce, esattamente come falliva prima — l'unica differenza è che ora il fallimento è isolato alla fase `verify` e non contamina più `mvn test`/`mvn clean install`, che tornano ad essere un segnale affidabile sullo stato del codice applicativo.
+
+*Perché `**/*IntegrationTest.java` è stato aggiunto esplicitamente ai pattern, invece di rinominare la classe.* Il naming standard failsafe è `*IT`/`*ITCase`; `TenantContextIntegrationTest` non lo segue. Rinominare il file sarebbe stata una modifica di codice non necessaria per risolvere il problema analizzato (che è di configurazione, non di codice); estendere il pattern di `<includes>` di failsafe ottiene lo stesso risultato architetturale (il test gira in fase `verify`, non in fase `test`) senza toccare file esistenti.
+
+**Conseguenze:**
+- `mvn test` e `mvn clean install` sono ora deterministici in qualunque ambiente (compreso questo sandbox): eseguono solo i 106 Unit Test, che non richiedono Docker.
+- `mvn verify` resta l'unico comando che esegue anche i 101 Integration Test; in locale/CI con Docker disponibile il comportamento è invariato rispetto a prima. In questo sandbox continuerà a fallire per l'assenza di Docker/Testcontainers (limite ambientale, non di codice) — comportamento atteso e documentato in `.agents/memory/replit-testcontainers-sandbox.md`.
+- Eventuali nuove classi di test di integrazione devono chiamarsi `*IT.java` (o, in casi eccezionali, essere aggiunte esplicitamente ai pattern di `<includes>` di failsafe come fatto qui) per essere eseguite in fase `verify` e non in fase `test`.

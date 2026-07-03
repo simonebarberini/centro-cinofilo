@@ -9,8 +9,8 @@ export const adminRoutes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
       { path: 'catalog', loadComponent: () => import('./catalog/catalog-list.component').then(m => m.CatalogListComponent) },
-      // P6 — { path: 'tenants', ... }
-      // P6 — { path: 'tenants/:tenantId', ... }
+      { path: 'tenants', loadComponent: () => import('./tenants/tenant-list.component').then(m => m.TenantListComponent) },
+      // P7 — { path: 'tenants/:tenantId', ... }
     ]
   }
 ];

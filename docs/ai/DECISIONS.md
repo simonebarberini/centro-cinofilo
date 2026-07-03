@@ -285,3 +285,40 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - `/admin/catalog` mostra l'elenco completo dei moduli con Nome, Module Key, Tipo, Stato; la ricerca filtra solo lato client sul nome già caricato
 - `CatalogAdminService.getByKey()` è disponibile fin da ora (avvolge un endpoint già esistente) ma non è ancora utilizzato da nessun componente — verrà consumato dalla futura pagina di dettaglio modulo, senza richiedere modifiche al service
 - Nessuna azione di scrittura è presente in UI: aggiungerla in futuro richiederà endpoint dedicati, una ADR propria e approvazione esplicita
+
+---
+
+## ADR-013 — Tenant List: ricerca server-side, `TenantAdminService` come unico punto di accesso, pagina operativa principale del backoffice
+
+**Stato:** implementato
+
+**Contesto:** Il backend espone già `GET /admin/tenants?q=` (`TenantAdminController.search`, `TenantAdminService.search` lato backend, protetto da `hasRole('ADMIN_APP')`), realizzato in P1 ma mai consumato da alcuna UI. La sidebar del backoffice ha una voce "Tenant" non ancora collegata.
+
+**Problema:** Come esporre l'elenco e la ricerca dei tenant nel backoffice, riusando esclusivamente `GET /admin/tenants?q=`, senza introdurre paginazione, modifica o eliminazione, e gestendo correttamente la digitazione dell'utente durante la ricerca?
+
+**Decisione:** Introdurre `TenantListComponent` su `/admin/tenants`, un `TenantAdminService` Angular dedicato (`search(q)`), e un modello `TenantSummary` che rispecchia `TenantSummaryResponse`. La ricerca è inviata al backend tramite il parametro `q` ad ogni digitazione, con `debounceTime` + `distinctUntilChanged` + `switchMap` per annullare automaticamente le richieste precedenti non ancora risolte. La tabella mostra Nome, Slug, Tipo, Capacità box, Data creazione, con un pulsante "Apri" per la futura navigazione al dettaglio.
+
+**Motivazione:**
+
+*Perché la ricerca tenant è lato backend, non client-side (a differenza del Catalog, ADR-012).* La cardinalità dei tenant cresce con il business (potenzialmente centinaia o migliaia in un SaaS multi-tenant maturo), a differenza del catalogo moduli che resta piccolo per natura. Caricare l'intero elenco tenant nel browser per poi filtrarlo localmente non scala e anticipa un problema di performance che il backend già risolve: l'endpoint `GET /admin/tenants?q=` esiste apposta per delegare la ricerca al database. Riusarlo lato server è quindi la scelta coerente con la cardinalità del dominio, non solo con l'API disponibile.
+
+*Perché `debounceTime` + `distinctUntilChanged` + `switchMap`.* Una ricerca server-side ad ogni tasto digitato produrrebbe una richiesta HTTP per carattere. `debounceTime` limita la frequenza delle chiamate a quando l'utente fa una pausa nella digitazione; `distinctUntilChanged` evita di ripetere la stessa richiesta se il testo non è cambiato nella sostanza; `switchMap` garantisce che solo l'ultima richiesta in ordine di tempo determini il risultato mostrato, annullando le precedenti ancora in volo — evitando il classico bug di "race condition di rete" in cui una risposta lenta a una ricerca precedente sovrascrive quella più recente.
+
+*Perché `TenantAdminService` è il punto unico di accesso alle API tenant di piattaforma.* Tutte le operazioni amministrative sui tenant (ricerca oggi, dettaglio e gestione moduli nelle milestone future P7+) condividono lo stesso `TenantAdminController` sul backend. Concentrarle in un solo service Angular, invece di crearne uno per pagina, evita la duplicazione di `baseUrl` e la dispersione dei contratti HTTP: quando P7 aggiungerà il dettaglio tenant, si aggiungerà un metodo a questo stesso service, non un service parallelo.
+
+*Perché Tenant List è la pagina operativa principale del Platform Backoffice.* A differenza di Dashboard (punto di atterraggio, ADR-011) e Catalog (consultazione di configurazione, ADR-012), la gestione dei tenant è l'attività quotidiana per cui il backoffice viene usato: verificare chi è cliente, aprirne il dettaglio, intervenire sulle sue subscription. Le prossime milestone (dettaglio, gestione moduli, sospensione) si costruiscono tutte a partire da questa lista — è il punto di ingresso naturale verso il resto del dominio "gestione tenant".
+
+**Alternative scartate:**
+
+*Ricerca client-side come per il Catalog (ADR-012)* — scartato perché la cardinalità e le prospettive di crescita dei due domini sono diverse: il catalogo moduli resta piccolo per natura, l'elenco tenant no. Applicare la stessa scelta a entrambi ignorerebbe questa differenza.
+
+*Debounce manuale con `setTimeout`* — scartato in favore degli operatori RxJS standard di Angular (`debounceTime`, `distinctUntilChanged`, `switchMap`), già disponibili in `rxjs` senza dipendenze aggiuntive e idiomatici per questo tipo di problema (ricerca reattiva) nell'ecosistema Angular.
+
+*Un service per la lista e uno separato per il futuro dettaglio* — scartato perché entrambi parlano con lo stesso controller backend (`TenantAdminController`); frammentarli introdurrebbe due `baseUrl` identici da mantenere sincronizzati senza alcun beneficio.
+
+*Implementare già ora paginazione o azioni di modifica/eliminazione* — scartato perché non richiesto in questa milestone e perché introdurrebbe parametri di query o endpoint non ancora concordati, in violazione del principio YAGNI (ADR-008) e del flusso "una feature alla volta".
+
+**Conseguenze:**
+- `/admin/tenants` mostra la lista tenant con ricerca server-side reattiva; digitare rapidamente non genera richieste multiple concorrenti grazie a `switchMap`
+- Il pulsante "Apri" naviga già a `/admin/tenants/:id`, rotta non ancora implementata (verrà aggiunta in P7): comportamento accettato, coerente con il precedente della sidebar in P3 (link presenti prima della pagina di destinazione)
+- `TenantAdminService` avrà nuovi metodi (`getById`, `getModules`) aggiunti in milestone future, senza necessità di un nuovo service né di duplicare `baseUrl`

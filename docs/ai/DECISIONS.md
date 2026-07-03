@@ -490,7 +490,9 @@ Esplorando il dominio per implementare il bootstrap è emerso un vincolo esisten
 - Verifica empirica su tutte le 101 esecuzioni (`mvn clean verify` dopo la riconfigurazione, vedi sotto): **101/101 falliscono con lo stesso `Caused by: org.testcontainers.containers.ContainerLaunchException: Container startup failed for image testcontainers/ryuk:0.5.1`.** Nessuna eccezione applicativa (assertion fallita, bean mancante, errore di validazione, ecc.) tra i 101 fallimenti.
 - I 106 Unit Test (nessuno dei quali estende `AbstractPostgresIT` o richiede Docker) passano tutti, sia isolati sia nella stessa run.
 
-**Conclusione dell'analisi:** tutti i fallimenti riscontrati dipendono esclusivamente dall'indisponibilità di Docker/Testcontainers in questo sandbox. Nessuna regressione di codice introdotta dalle milestone precedenti (incluso il Platform Admin Bootstrap, ADR-017). Di conseguenza, come da criterio concordato, non è stato modificato alcun codice applicativo: si è proceduto solo alla riconfigurazione della build.
+**Conclusione dell'analisi:** tutti i fallimenti riscontrati in questo sandbox dipendono dall'indisponibilità di Docker/Testcontainers. Di conseguenza, come da criterio concordato, non è stato modificato alcun codice applicativo: si è proceduto solo alla riconfigurazione della build.
+
+**Correzione (vedi ADR-019).** Questa conclusione era incompleta: il fallimento Ryuk/Testcontainers qui riscontrato maschera una **seconda causa, reale e indipendente**, che si manifesta anche in ambienti dove Docker funziona (verificato sulla macchina locale dell'utente, con Docker attivo). ADR-019 documenta la causa esatta e la correzione minima applicata, che non contraddice quanto deciso qui: la separazione Surefire/Failsafe resta corretta e valida, la mancanza di regressione riguardava solo il tema Testcontainers, non l'intero perimetro dei fallimenti IT.
 
 **Decisione:** Separazione standard Maven Surefire/Failsafe:
 - `maven-surefire-plugin` (fase `test`) esclude esplicitamente `**/*IT.java` e `**/*IntegrationTest.java` → `mvn test` (e anche `mvn package`, che si ferma prima della fase `verify`) esegue **solo** i 106 Unit Test. **Nota bene:** `mvn install` (e quindi `mvn clean install`) segue il ciclo di vita standard Maven, che include la fase `verify` **prima** della fase `install` — quindi `mvn install` esegue comunque, tramite Failsafe, anche gli Integration Test, esattamente come `mvn verify`. Non è un comando "solo unit test": chi vuole eseguire solo gli Unit Test deve usare `mvn test` (o `mvn package`), non `mvn install`.
@@ -509,3 +511,47 @@ Esplorando il dominio per implementare il bootstrap è emerso un vincolo esisten
 - `mvn test` e `mvn package` sono ora deterministici in qualunque ambiente (compreso questo sandbox): eseguono solo i 106 Unit Test, che non richiedono Docker.
 - `mvn verify` e `mvn install`/`mvn clean install` restano i comandi che eseguono anche i 101 Integration Test, perché nel ciclo di vita standard Maven la fase `verify` precede sempre la fase `install`: in locale/CI con Docker disponibile il comportamento è invariato rispetto a prima. **In questo sandbox `mvn install`/`mvn clean install` continueranno a fallire** per l'assenza di Docker/Testcontainers (limite ambientale, non di codice) — comportamento atteso e documentato in `.agents/memory/replit-testcontainers-sandbox.md`. Per una build rapida e Docker-indipendente in questo sandbox va usato `mvn test` o `mvn package`, non `mvn install`.
 - Eventuali nuove classi di test di integrazione devono chiamarsi `*IT.java` (o, in casi eccezionali, essere aggiunte esplicitamente ai pattern di `<includes>` di failsafe come fatto qui) per essere eseguite in fase `verify` (quindi anche durante `install`) e non in fase `test`.
+
+---
+
+## ADR-019 — Fix regressione reale: `platform-admin.*` mancanti nel profilo `test` bloccano l'avvio dell'`ApplicationContext` in tutti gli Integration Test
+
+**Stato:** implementato
+
+**Contesto.** Dopo ADR-018, l'utente ha eseguito la suite IT sulla propria macchina, con Docker/Testcontainers funzionante, e ha ottenuto un fallimento diverso da quello osservato nel sandbox Replit (che si ferma prima, su Ryuk/sysfs). Questo indicava che la conclusione di ADR-018 ("tutti i 101 fallimenti dipendono solo da Docker") era incompleta: esiste una seconda causa reale, mascherata nel sandbox dal fallimento Testcontainers, che si manifesta soltanto quando Testcontainers riesce ad avviarsi davvero.
+
+**Analisi eseguita prima di qualsiasi modifica.** Per isolare la causa senza dipendere da Docker (non disponibile in questo sandbox), è stato avviato `mvn spring-boot:run` con profilo `test` contro un PostgreSQL reale (istanza Postgres del sandbox), replicando esattamente le stesse property che `AbstractPostgresIT` inietta via `@DynamicPropertySource` (`jwt.secret`, CORS, rate-limit, `management.health.mail.enabled`), ma **senza** impostare le variabili d'ambiente `PLATFORM_ADMIN_USERNAME/EMAIL/PASSWORD`. Risultato, riprodotto in modo deterministico:
+
+```
+Binding to target org.springframework.boot.context.properties.bind.BindException:
+Failed to bind properties under 'platform-admin' to it.cinofilo.config.PlatformAdminProperties failed:
+    Property: platform-admin.email
+    Value: "${PLATFORM_ADMIN_EMAIL}"
+    Origin: class path resource [application.yml] - 70:10
+    Reason: platform-admin.email deve essere un indirizzo email valido
+```
+
+**Causa radice.** `application.yml` definisce `platform-admin.email: ${PLATFORM_ADMIN_EMAIL}` senza valore di default (per design, ADR-017: nessun default in produzione). I default per lo sviluppo esistono solo in `application-dev.yml`. La suite IT attiva il profilo `test` (non `dev`) tramite `AbstractPostgresIT`, e non esisteva alcuna sorgente di valori per `platform-admin.*` sotto quel profilo. Quando la variabile d'ambiente manca, Spring non lancia un errore di placeholder irrisolto: lega la stringa letterale `"${PLATFORM_ADMIN_EMAIL}"` come valore della property. Questa stringa supera la validazione `@NotBlank` (non è vuota) ma fallisce `@Email` (non è un formato email valido), causando un `BindException` sul bean `PlatformAdminProperties`, che a cascata impedisce la creazione del bean `platformAdminBootstrap` e il fallimento dell'intero `ApplicationContext` — esattamente il sintomo osservato in ogni test `@SpringBootTest` della suite, indipendentemente da quale singola classe/scenario di business venga testato.
+
+**Perché non emergeva da `PlatformAdminBootstrapTest`:** quel test costruisce `PlatformAdminProperties` direttamente in Java con valori validi, senza passare dal binding da `application.yml` con profilo `test` attivo — non attraversa il percorso che fallisce.
+
+**Perché era mascherata nel sandbox Replit:** nel sandbox, l'inizializzazione statica del container Testcontainers Postgres (in `AbstractPostgresIT`) fallisce per limiti dell'ambiente containerizzato (mount `sysfs` negato da Ryuk, vedi `.agents/memory/replit-testcontainers-sandbox.md`) **prima** che Spring tenti di avviare l'`ApplicationContext`. Questo fallimento anticipato ha nascosto la regressione reale, riprodotta qui bypassando Testcontainers e usando un Postgres reale già disponibile nel sandbox.
+
+**Decisione — correzione minima, nessuna modifica al bootstrap.** Aggiunti tre valori di test in `AbstractPostgresIT`, nello stesso blocco `@DynamicPropertySource` che già fornisce `jwt.secret`, CORS e rate-limit per l'ambiente di test:
+
+```java
+registry.add("platform-admin.username", () -> "platform-admin-test");
+registry.add("platform-admin.email", () -> "platform-admin@test.local");
+registry.add("platform-admin.password", () -> "PlatformAdminTest123!");
+```
+
+Nessuna modifica a `PlatformAdminBootstrap`, `PlatformAdminProperties` o al comportamento di produzione: il bootstrap continua a girare, invariato, anche nei test — come richiesto — e in produzione restano obbligatorie le variabili d'ambiente, senza default. Non è stato introdotto alcun `@Profile("!test")` né logica condizionale sull'ambiente.
+
+**Perché in `AbstractPostgresIT` e non in un nuovo `application-test.yml`.** Il progetto ha già un punto unico e consolidato per le property obbligatorie di produzione prive di default, necessarie solo per far partire il contesto nei test (`jwt.secret`, CORS, rate-limit, mail health) — tutte definite nello stesso blocco `@DynamicPropertySource`. Aggiungere `platform-admin.*` lì mantiene un'unica fonte di verità per questo tipo di configurazione di test, invece di frammentarla tra un file YAML aggiuntivo e i valori dinamici esistenti.
+
+**Verifica.** Riprodotto l'avvio con `mvn spring-boot:run`, profilo `test`, Postgres reale, stesse property di `AbstractPostgresIT` inclusi i tre nuovi valori `platform-admin.*`: `ApplicationContext` si avvia con successo (`Started CinofiloApplication in 14.938 seconds`) e il bootstrap crea correttamente l'utente (`Created platform admin user 'platform-admin-test' (role=ADMIN_APP)`). L'esecuzione della suite IT completa via Testcontainers resta bloccata in questo sandbox per il limite Ryuk/sysfs (invariato, vedi ADR-018): la conferma definitiva su tutti i 101 IT richiede l'esecuzione da parte dell'utente, sulla propria macchina con Docker.
+
+**Conseguenze:**
+- I test `@SpringBootTest`/IT che prima fallivano su Docker funzionante ora dovrebbero superare la fase di avvio del contesto; eventuali fallimenti residui saranno finalmente quelli reali di logica applicativa.
+- Nessun impatto sul comportamento di produzione: `platform-admin.*` restano obbligatorie via env var, senza default, in `application.yml`.
+- Se in futuro si aggiungono nuove property obbligatorie senza default (nuove milestone), vanno considerate anche ai fini dei test: verificare se serve un valore in `AbstractPostgresIT`, seguendo lo stesso pattern.

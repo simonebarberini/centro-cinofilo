@@ -322,3 +322,40 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - `/admin/tenants` mostra la lista tenant con ricerca server-side reattiva; digitare rapidamente non genera richieste multiple concorrenti grazie a `switchMap`
 - Il pulsante "Apri" naviga già a `/admin/tenants/:id`, rotta non ancora implementata (verrà aggiunta in P7): comportamento accettato, coerente con il precedente della sidebar in P3 (link presenti prima della pagina di destinazione)
 - `TenantAdminService` avrà nuovi metodi (`getById`, `getModules`) aggiunti in milestone future, senza necessità di un nuovo service né di duplicare `baseUrl`
+
+---
+
+## ADR-014 — Tenant Detail Shell: caricamento unico, stato condiviso via route-scoped provider, tab bar su child routes
+
+**Stato:** implementato
+
+**Contesto:** P6 ha introdotto Tenant List con un pulsante "Apri" che naviga a `/admin/tenants/:tenantId`, rotta finora inesistente. Il backend espone già `GET /admin/tenants/{tenantId}` (`TenantAdminService.findById` lato backend). Le future milestone P8 (tab Info) e P9 (tab Moduli) dovranno mostrare, in viste diverse, gli stessi dati del tenant già caricato.
+
+**Problema:** Come strutturare la pagina di dettaglio tenant in modo che (a) il tenant venga caricato una sola volta all'ingresso nella pagina, (b) i futuri tab possano leggere quei dati senza rifare la chiamata HTTP, (c) la tab bar e il contenuto del tab attivo siano gestiti dal router in modo standard Angular?
+
+**Decisione:** `TenantDetailComponent` è una shell: legge `tenantId` dalla route, chiama `TenantAdminService.getById()` una sola volta in `ngOnInit`, gestisce loading/error, e pubblica il risultato in `TenantDetailState` — un piccolo servizio Angular (`BehaviorSubject` + getter sincrono) registrato con `providers: [TenantDetailState]` a livello della route `tenants/:tenantId` (non `providedIn: 'root'`). La rotta ha `children` (ancora vuoti, popolati in P8/P9) e la shell renderizza la tab bar (Info, Moduli) più `<router-outlet>` per il tab attivo.
+
+**Motivazione:**
+
+*Perché `TenantDetailComponent` è una shell.* Il componente non contiene né conterrà logica specifica di un singolo tab (i campi anagrafici in P8, i moduli attivi in P9): la sua unica responsabilità è portare in vita i dati del tenant e la struttura di navigazione condivisa da tutti i tab. Separare "chi carica il dato" da "chi lo mostra" evita che ogni tab futuro debba ripetere la gestione di loading/error/route-param, e mantiene i tab liberi di concentrarsi solo sulla propria porzione di UI.
+
+*Perché il caricamento del tenant avviene una sola volta.* `TenantDetailComponent` non viene distrutto e ricreato quando l'utente passa da un tab all'altro — solo il contenuto dentro `<router-outlet>` cambia. Chiamare `getById()` in `ngOnInit` della shell (anziché in ciascun tab) garantisce che il dato venga recuperato esattamente una volta per visita alla pagina di dettaglio, indipendentemente da quanti tab l'utente apre in sequenza: nessuna richiesta duplicata, nessun disallineamento tra tab che vedono versioni diverse dello stesso tenant.
+
+*Perché i tab condividono lo stesso stato.* `TenantDetailState` è registrato nell'array `providers` della route `tenants/:tenantId`, non del singolo componente. In Angular, i `providers` di una route creano un injector condiviso da quella route e da tutte le sue route figlie: questo significa che ogni tab (child route) riceve automaticamente la stessa istanza di `TenantDetailState` popolata dalla shell, senza passaggi manuali di dati (`@Input`) attraverso il router-outlet — meccanismo che il router Angular non supporta nativamente per le route figlie. Usare `providedIn: 'root'` sarebbe stato scorretto: renderebbe lo stato globale all'intera applicazione anche dopo aver lasciato la pagina di dettaglio, con il rischio di mostrare dati di un tenant precedente alla prima apertura di un tenant successivo.
+
+*Perché il router usa child routes.* La tab bar (Info/Moduli) rappresenta viste alternative all'interno dello stesso tenant, non pagine indipendenti: usare `children` sulla route `tenants/:tenantId` permette a ciascun tab di avere un proprio URL (`/admin/tenants/:id/info`, `/admin/tenants/:id/modules`), supportando bookmark diretti, back/forward del browser e lazy loading indipendente per tab — mantenendo al contempo un unico punto di ingresso (`TenantDetailComponent`) che monta la shell una sola volta per l'intera sessione di navigazione tra tab.
+
+**Alternative scartate:**
+
+*Passare il tenant come `@Input()` ai tab tramite binding manuale* — scartato perché il router Angular non inietta automaticamente `@Input()` nei componenti caricati da `<router-outlet>` per le route figlie nello stesso modo in cui lo fa con `withComponentInputBinding()` per i soli route param — e comunque richiederebbe che la shell conoscesse in anticipo l'interfaccia di ogni tab, accoppiandola alle implementazioni future.
+
+*`TenantDetailState` con `providedIn: 'root'`* — scartato perché renderebbe lo stato del tenant visibile globalmente e persistente oltre il ciclo di vita della pagina di dettaglio, causando potenziali dati stantii se l'utente naviga da un tenant a un altro.
+
+*Ricaricare il tenant in ciascun tab tramite `TenantAdminService.getById()` diretto* — scartato perché duplicherebbe la chiamata HTTP ad ogni cambio di tab, contraddicendo il requisito esplicito di un caricamento unico e introducendo la possibilità che due tab mostrino contemporaneamente due risposte diverse dello stesso endpoint.
+
+*Tab come sezioni nella stessa pagina (`*ngIf` su una proprietà `activeTab`, senza routing)* — scartato perché elimina la possibilità di URL diretti ai singoli tab e non è coerente con il pattern "tab bar + router-outlet" già indicato nei requisiti della milestone.
+
+**Conseguenze:**
+- `TenantDetailComponent` non ha logica di dominio propria: aggiungere un nuovo tab in futuro richiede solo un nuovo componente che inietta `TenantDetailState` e una nuova child route, senza toccare la shell
+- La tab bar è già navigabile verso `info` e `modules`, rotte non ancora implementate (verranno aggiunte in P8/P9): comportamento accettato, stesso precedente già adottato per Tenant List (ADR-013) e la sidebar (P3)
+- Se in futuro un tab dovesse modificare il tenant (es. dopo un salvataggio), potrà chiamare `TenantDetailState.setTenant()` per aggiornare lo stato condiviso senza dover ricaricare l'intera shell

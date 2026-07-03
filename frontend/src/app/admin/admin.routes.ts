@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AdminLayoutComponent } from './admin-layout/admin-layout.component';
+import { TenantDetailState } from './tenants/tenant-detail-state';
 
 export const adminRoutes: Routes = [
   {
@@ -10,7 +11,16 @@ export const adminRoutes: Routes = [
       { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
       { path: 'catalog', loadComponent: () => import('./catalog/catalog-list.component').then(m => m.CatalogListComponent) },
       { path: 'tenants', loadComponent: () => import('./tenants/tenant-list.component').then(m => m.TenantListComponent) },
-      // P7 — { path: 'tenants/:tenantId', ... }
+      {
+        path: 'tenants/:tenantId',
+        loadComponent: () => import('./tenants/tenant-detail.component').then(m => m.TenantDetailComponent),
+        providers: [TenantDetailState],
+        children: [
+          // P8 — { path: '', redirectTo: 'info', pathMatch: 'full' }
+          // P8 — { path: 'info', loadComponent: () => import('./tenants/tenant-info-tab.component').then(m => m.TenantInfoTabComponent) }
+          // P9 — { path: 'modules', loadComponent: () => import('./tenants/tenant-modules-tab.component').then(m => m.TenantModulesTabComponent) }
+        ]
+      }
     ]
   }
 ];

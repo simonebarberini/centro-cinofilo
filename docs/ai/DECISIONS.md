@@ -252,3 +252,36 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - `/admin` e `/admin/dashboard` sono equivalenti per l'utente; la sidebar punta esplicitamente a `/admin/dashboard`
 - Quando le metriche di piattaforma saranno definite (numero tenant, subscription attive, ecc.), si aggiungeranno componenti card dentro l'area già presente in `dashboard.component.html`, senza toccare il routing
 - `DashboardComponent` resta senza `constructor` e senza injection finché non verrà introdotto un servizio dedicato alle metriche — nessuna dipendenza da rimuovere in seguito
+
+---
+
+## ADR-012 — Platform Catalog come sezione autonoma, sola lettura, con service dedicato
+
+**Stato:** implementato
+
+**Contesto:** Il backend espone già `GET /admin/catalog` e `GET /admin/catalog/{moduleKey}` (`CatalogAdminController`, protetto da `hasRole('ADMIN_APP')`), usati finora solo internamente al dominio Catalog. Il Platform Backoffice ha ora Dashboard (P4) come homepage e una sidebar con voce "Catalog" ancora non collegata a nessuna pagina.
+
+**Problema:** Come esporre il catalogo dei moduli di piattaforma nel backoffice, riusando esclusivamente endpoint già esistenti, senza introdurre alcuna capacità di modifica del catalogo in questa milestone?
+
+**Decisione:** Introdurre `CatalogListComponent` su `/admin/catalog`, un `CatalogAdminService` dedicato che avvolge i due endpoint esistenti, e un modello `CatalogModule` che rispecchia `ModuleResponse`. La pagina è sola lettura: tabella con Nome, Module Key, Tipo, Stato, più una ricerca client-side sul nome (filtro in memoria su `getAll()`, nessuna chiamata di rete aggiuntiva).
+
+**Motivazione:**
+
+*Perché il Catalog è una sezione autonoma del backoffice.* Il catalogo moduli è un concetto di piattaforma indipendente dal singolo tenant (a differenza di clienti/cani/prenotazioni, che sono tenant-scoped) ed è già un bounded context separato nel backend (package `catalog`, `CatalogAdminController` distinto da `TenantAdminController` e `SubscriptionAdminController`). Rispecchiare questo confine anche nel frontend — una route, un service, un modello dedicati — mantiene la corrispondenza 1:1 tra bounded context di backend e sezione di UI, evitando che la UI mescoli concetti che il dominio tiene separati.
+
+*Perché sola lettura in questa fase.* Gli endpoint di scrittura sul catalogo (creazione/modifica/eliminazione modulo) non esistono ancora lato backend, e introdurli non è nello scope di questa milestone. Costruire una UI di modifica senza le API sottostanti significherebbe anticipare sia il contratto di quegli endpoint sia le regole di business che dovranno validarli (es. impatto su subscription attive quando un modulo viene disattivato) — decisioni che vanno discusse ed approvate a parte, non dedotte implicitamente dalla UI.
+
+*Perché `CatalogAdminService` è separato dagli altri service Angular.* I service esistenti (`CustomersApiService`, `DogsApiService`, `TenantApiService`, ecc.) parlano tutti con endpoint tenant-scoped e assumono implicitamente un tenant corrente. `CatalogAdminService` parla con endpoint `/admin/**` protetti da ruolo di piattaforma, non da tenant — mescolarlo con i service tenant creerebbe un'illusione di omogeneità che non esiste a livello di autorizzazione e di dominio. La stessa separazione è già stata scelta per `AdminLayoutComponent` rispetto a `MainLayoutComponent` (ADR-010): un service admin colloca coerentemente questo confine anche nel layer di accesso ai dati.
+
+**Alternative scartate:**
+
+*Riutilizzare un service esistente aggiungendo metodi per il catalogo* — scartato per lo stesso motivo che ha portato a separare `AdminLayoutComponent`: mescolare responsabilità tenant-scoped e piattaforma-scoped nello stesso service rende ambiguo, a colpo d'occhio, quale endpoint richieda quale contesto di autorizzazione.
+
+*Aggiungere subito azioni di modifica (toggle stato, form di modifica)* — scartato perché richiederebbe endpoint di scrittura non ancora progettati né approvati, in violazione del flusso "una feature alla volta" e del principio YAGNI (ADR-008).
+
+*Ricerca lato server (query param su `GET /admin/catalog`)* — scartato per questa milestone: il catalogo moduli è un insieme piccolo e a bassa cardinalità (i moduli di un SaaS sono decine, non migliaia), per cui un filtro client-side su dati già caricati è sufficiente e non richiede di modificare il controller esistente, rispettando il vincolo "nessuna modifica al backend".
+
+**Conseguenze:**
+- `/admin/catalog` mostra l'elenco completo dei moduli con Nome, Module Key, Tipo, Stato; la ricerca filtra solo lato client sul nome già caricato
+- `CatalogAdminService.getByKey()` è disponibile fin da ora (avvolge un endpoint già esistente) ma non è ancora utilizzato da nessun componente — verrà consumato dalla futura pagina di dettaglio modulo, senza richiedere modifiche al service
+- Nessuna azione di scrittura è presente in UI: aggiungerla in futuro richiederà endpoint dedicati, una ADR propria e approvazione esplicita

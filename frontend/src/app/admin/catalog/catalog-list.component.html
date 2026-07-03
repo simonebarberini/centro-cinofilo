@@ -1,0 +1,61 @@
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+    <h1 class="text-2xl font-bold">Catalog</h1>
+    <input
+      type="text"
+      class="input input-bordered w-full max-w-xs"
+      placeholder="Cerca per nome modulo..."
+      [(ngModel)]="searchTerm"
+    />
+  </div>
+
+  <div *ngIf="loading" class="flex justify-center py-12">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+
+  <div *ngIf="error" class="alert alert-error mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ error }}</span>
+    <button class="btn btn-sm btn-ghost" (click)="loadModules()">Riprova</button>
+  </div>
+
+  <div *ngIf="!loading && !error && filteredModules.length === 0" class="card bg-base-200 p-12 text-center">
+    <div class="text-5xl mb-4">📦</div>
+    <h2 class="text-xl font-semibold mb-2">Nessun modulo trovato</h2>
+    <p class="text-base-content/60">
+      {{ modules.length === 0 ? 'Il catalogo non contiene ancora moduli.' : 'Nessun modulo corrisponde alla ricerca.' }}
+    </p>
+  </div>
+
+  <div *ngIf="!loading && !error && filteredModules.length > 0" class="card bg-base-100 shadow-sm overflow-x-auto">
+    <table class="table table-zebra">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Module Key</th>
+          <th>Tipo</th>
+          <th>Stato</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let m of filteredModules">
+          <td class="font-medium">{{ m.name }}</td>
+          <td><code class="text-sm">{{ m.moduleKey }}</code></td>
+          <td>{{ m.type }}</td>
+          <td>
+            <span
+              class="badge"
+              [ngClass]="{
+                'badge-success': m.activationStatus === 'ACTIVE',
+                'badge-ghost': m.activationStatus === 'INACTIVE',
+                'badge-warning': m.activationStatus === 'DEPRECATED'
+              }"
+            >{{ m.activationStatus }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

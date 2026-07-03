@@ -431,3 +431,46 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - `SubscriptionAdminService` diventa il punto di estensione naturale per qualunque futura operazione sulle sottoscrizioni (es. Grant History in una milestone futura): andrà aggiunta lì, non in un nuovo service parallelo
 - Il modello di vista `TenantModuleViewModel` è locale al tab (`tenants/tenant-module-view.model.ts`): se in futuro altri componenti avessero bisogno della stessa vista aggregata, andrà valutato lo spostamento in una posizione condivisa, non duplicato
 - La cache locale del catalogo (`this.catalog`) vive solo per la durata di vita del componente tab: alla navigazione fuori e dentro il tab, il catalogo viene ricaricato da capo: comportamento accettato, coerente con l'assenza di uno stato condiviso per i moduli (a differenza del tenant, che resta in `TenantDetailState`)
+
+---
+
+## ADR-017 — Platform Admin Bootstrap: creazione idempotente dell'unico ADMIN_APP, tramite un tenant tecnico di sistema
+
+**Stato:** implementato
+
+**Contesto:** Il Platform Backoffice (P3–P9) richiede un utente con ruolo `ADMIN_APP` per essere utilizzabile, ma non esiste oggi alcun modo di crearne uno: `AuthService.register()` crea sempre un tenant cliente con utente `TENANT_OWNER`; non esiste un endpoint né un seed dedicato all'amministratore di piattaforma. Il `DevDataSeeder` esistente crea un tenant demo con dati applicativi, cosa esplicitamente da evitare per questa milestone.
+
+Esplorando il dominio per implementare il bootstrap è emerso un vincolo esistente non aggirabile senza modificare il dominio: `AppUser.tenant` è una relazione `@ManyToOne(optional = false)` con colonna `tenant_id NOT NULL` e unique constraint `(tenant_id, username)`; inoltre l'unico flusso di login esistente (`AuthService.login()`) risolve prima il tenant per `slug` e poi l'utente per `tenantId + username`. Non esiste un percorso di login "senza tenant": il metodo `AppUserRepository.findByUsername()` esiste nel repository ma non è usato da alcun controller.
+
+**Problema:** Come creare un unico utente `ADMIN_APP`, in modo idempotente, utilizzabile da subito per accedere al Platform Backoffice con il login esistente, senza modificare il dominio (`AppUser`, `AuthService`, lo schema) e senza introdurre alcun dato applicativo demo (clienti, cani, prenotazioni, moduli)?
+
+**Decisione:** Un nuovo `PlatformAdminBootstrap` (`@Configuration` con `ApplicationRunner`, eseguito ad ogni avvio dell'applicazione, in tutti i profili) esegue, in una singola transazione:
+1. Cerca un `Tenant` per lo slug configurato (`platform-admin.tenant.slug`, default `platform`). Se non esiste, ne crea uno nuovo — un tenant **tecnico di sistema**, non un tenant demo: nome/slug configurabili, `capacityBoxes=0`, nessun cliente, cane, prenotazione o modulo mai creato o associato ad esso. Esiste esclusivamente per soddisfare il vincolo `NOT NULL` di `AppUser.tenant` e il flusso di login tenant-scoped già esistente, non introduce alcuna modifica al dominio (l'entità `Tenant` e il suo utilizzo restano quelli già previsti dal modello attuale).
+2. Verifica se esiste già un `AppUser` con quello username in quel tenant (`AppUserRepository.existsByTenantIdAndUsername`). Se sì, non fa nulla. Se no, crea l'unico `AppUser` con ruolo `ADMIN_APP`, `enabled=true`, `emailVerified=true`, password codificata con lo stesso `PasswordEncoder` (`BCryptPasswordEncoder`) già usato da `AuthService`.
+3. Username, email, password dell'admin e nome/slug del tenant tecnico sono esternalizzati in configurazione (`platform-admin.*`), nessun valore hardcoded nel codice. Le credenziali (`username`, `email`, `password`) non hanno default in `application.yml`: come `jwt.secret`, l'applicazione si rifiuta di avviarsi se non sono configurate esplicitamente (env var o profilo). Valori di comodo per lo sviluppo locale sono definiti solo in `application-dev.yml`.
+4. Riusa `TenantRepository` e `AppUserRepository` esistenti così come sono: nessuna query nativa, nessun bypass della validazione JPA o della logica di dominio.
+
+**Motivazione:**
+
+*Perché viene creato automaticamente un solo ADMIN_APP.* È l'unico account necessario per iniziare a usare il Platform Backoffice; da lì in poi, la gestione di eventuali altri operatori di piattaforma è fuori scope di questa milestone di stabilizzazione (FASE 2 prevede "Gestione utenti staff" più avanti, ma per i tenant, non per la piattaforma). Creare più admin per default aumenterebbe la superficie di attacco senza alcun beneficio a questo stadio.
+
+*Perché non vengono creati dati demo.* Il `DevDataSeeder` esistente già copre l'esigenza di dati di sviluppo (tenant demo, owner, ecc.) dietro il profilo `dev`; questa milestone ha uno scope volutamente più stretto e infrastrutturale: rendere login-abile il backoffice in **qualsiasi** ambiente (incluso, in prospettiva, la produzione), dove dati demo non devono mai esistere. Tenere le due responsabilità separate (bootstrap admin vs seed dati di sviluppo) evita che l'una dipenda o interferisca con l'altra.
+
+*Perché il tenant tecnico non è una violazione del vincolo "nessun tenant demo".* Un tenant "demo" è caratterizzato dai dati applicativi che lo accompagnano (clienti, cani, prenotazioni) pensati per simulare un centro reale a scopo dimostrativo/di sviluppo. Il tenant qui creato non ha e non avrà mai nessuno di questi dati: è un artefatto puramente tecnico, necessario solo perché il modello dati attuale non consente un `AppUser` senza tenant. La distinzione è stata esplicitamente confermata dall'utente prima dell'implementazione.
+
+*Perché il bootstrap è idempotente.* Viene eseguito ad ogni avvio dell'applicazione (non solo alla prima installazione): deve poter girare ripetutamente — in dev ad ogni riavvio, in produzione ad ogni deploy — senza duplicare il tenant tecnico né l'utente admin, né sovrascrivere una password eventualmente già cambiata manualmente dall'amministratore reale dopo il primo login. Il controllo di esistenza (`findBySlug` per il tenant, `existsByTenantIdAndUsername` per l'utente) precede ogni creazione, ed è verificato con un test dedicato che simula due esecuzioni consecutive.
+
+*Perché le credenziali sono esternalizzate nella configurazione.* Nessun valore hardcoded nel codice sorgente evita che credenziali (anche solo di sviluppo) finiscano in git in chiaro nel codice Java, e permette a ogni ambiente di avere credenziali diverse senza ricompilare. Il pattern (nessun default in `application.yml`, default solo in `application-dev.yml`) è lo stesso già adottato per `JWT_SECRET`: è già un precedente consolidato nel progetto per distinguere "segreto di sviluppo, va bene un default noto" da "segreto che l'ambiente deve fornire esplicitamente".
+
+**Alternative scartate:**
+
+*Rendere `AppUser.tenant` nullable e adattare `AuthService.login()` a un percorso senza tenant* — scartato perché modifica il dominio e il flusso di autenticazione esistente, esplicitamente vietato per questa milestone; impatto anche su unique constraint, generazione JWT e `TenantContext`, complessità e rischio sproporzionati per una milestone di stabilizzazione.
+
+*Estendere `DevDataSeeder` per includere anche l'ADMIN_APP* — scartato perché `DevDataSeeder` è vincolato al profilo `dev` e crea deliberatamente dati demo: il bootstrap dell'admin di piattaforma deve invece poter girare in ogni ambiente, con uno scope (nessun dato demo) diverso e non sovrapponibile.
+
+*Usare una migrazione Flyway per inserire l'utente admin* — scartato perché la password dovrebbe essere già hashata al momento della migrazione (senza poter usare il `PasswordEncoder` Spring configurato a runtime, violando il requisito esplicito "stesso PasswordEncoder usato dal resto dell'applicazione"), e perché una migrazione applicata una sola volta non è il meccanismo naturale per un'operazione che deve essere ri-verificata (anche se no-op) ad ogni avvio.
+
+**Conseguenze:**
+- Ogni ambiente (dev, staging, produzione) deve configurare `PLATFORM_ADMIN_USERNAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` (e opzionalmente `PLATFORM_ADMIN_TENANT_NAME`/`_SLUG`) prima del primo avvio, esattamente come già avviene per `JWT_SECRET`
+- Il tenant tecnico "platform" comparirà nelle liste tenant del backoffice stesso (es. Tenant List, P6) come un tenant a tutti gli effetti: non è nascosto o filtrato. Un eventuale filtro per escluderlo dalle viste cliente-facing non è nello scope di questa milestone e andrà valutato solo se diventa un problema concreto d'uso
+- Il bootstrap non gestisce la rotazione della password: se cambiata manualmente dall'admin dopo il primo login, resta tale ad ogni riavvio successivo, perché il controllo di esistenza impedisce qualunque sovrascrittura

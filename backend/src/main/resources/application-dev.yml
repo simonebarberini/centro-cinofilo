@@ -40,6 +40,15 @@ jwt:
   secret: dev-only-secret-key-for-local-development-not-for-production-hs512-64b
   expiration-ms: 28800000
 
+# Platform admin bootstrap — dev-only default credentials. NOT for production use.
+platform-admin:
+  tenant:
+    name: Piattaforma
+    slug: platform
+  username: platform-admin
+  email: platform-admin@dev.local
+  password: PlatformAdmin123!
+
 app:
   base-url: http://localhost:4200
   cors:

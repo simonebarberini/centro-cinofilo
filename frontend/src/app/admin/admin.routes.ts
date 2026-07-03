@@ -16,8 +16,8 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./tenants/tenant-detail.component').then(m => m.TenantDetailComponent),
         providers: [TenantDetailState],
         children: [
-          // P8 — { path: '', redirectTo: 'info', pathMatch: 'full' }
-          // P8 — { path: 'info', loadComponent: () => import('./tenants/tenant-info-tab.component').then(m => m.TenantInfoTabComponent) }
+          { path: '', redirectTo: 'info', pathMatch: 'full' },
+          { path: 'info', loadComponent: () => import('./tenants/tenant-info-tab.component').then(m => m.TenantInfoTabComponent) },
           // P9 — { path: 'modules', loadComponent: () => import('./tenants/tenant-modules-tab.component').then(m => m.TenantModulesTabComponent) }
         ]
       }

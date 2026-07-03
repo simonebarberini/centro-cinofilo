@@ -361,3 +361,36 @@ I bucket sono namespaciati nel `PolicyRegistry` come `POLICY:KEY_TYPE:VALUE` per
 - Se in futuro un tab dovesse modificare il tenant (es. dopo un salvataggio), potrà chiamare `TenantDetailState.setTenant()` per aggiornare lo stato condiviso senza dover ricaricare l'intera shell
 
 **Debito tecnico consapevole:** `TenantDetailState` è stato introdotto come state route-scoped per evitare future duplicazioni del caricamento del tenant tra i tab. Se il numero di tab dovesse rimanere limitato (Info + Modules), questa scelta dovrà essere rivalutata durante una futura Architecture Review per verificare che non rappresenti over-engineering.
+
+---
+
+## ADR-015 — Tenant Info Tab: vista read-only sul dato già caricato dalla shell, nessuna chiamata HTTP propria
+
+**Stato:** implementato
+
+**Contesto:** P7 ha introdotto `TenantDetailComponent` come shell che carica il tenant una sola volta e lo pubblica in `TenantDetailState` (ADR-014), con una tab bar che punta a `info` e `modules`, entrambe finora prive di componente. Il tab `info` è il primo consumatore reale di `TenantDetailState`.
+
+**Problema:** Come mostrare i dati anagrafici del tenant (Nome, Slug, Tipo, Capacità box, Email billing, Data creazione) nel tab Info, senza duplicare la chiamata HTTP già effettuata dalla shell e senza introdurre logica che non sia di semplice presentazione?
+
+**Decisione:** `TenantInfoTabComponent` inietta `TenantDetailState` (lo stesso provider registrato a livello della route `tenants/:tenantId`, ADR-014) e si limita a leggere `tenant$` nel template tramite l'`async` pipe. Non inietta `TenantAdminService`, non effettua alcuna chiamata `http`, non contiene metodi oltre al costruttore: è un componente di sola presentazione dei campi richiesti.
+
+**Motivazione:**
+
+*Perché il tab Info riutilizza il dato già caricato dalla shell.* `TenantDetailState` esiste esattamente per questo scopo (ADR-014): essere l'unico canale attraverso cui i tab accedono al tenant corrente, popolato una sola volta dalla shell. Il tab Info è il primo caso reale che dimostra perché quello stato condiviso è stato introdotto — leggerlo da lì, anziché richiederlo di nuovo, è l'applicazione diretta della decisione già presa in P7, non una scelta nuova.
+
+*Perché non esegue chiamate HTTP autonome.* Se ogni tab richiamasse `TenantAdminService.getById()` per conto proprio, la garanzia di "caricamento unico" stabilita in ADR-014 diventerebbe solo teorica: il primo tab reale l'avrebbe già infranta. Vietare l'accesso diretto a `TenantAdminService` dal componente tab rende impossibile la duplicazione della richiesta anche per errore, ed è coerente con il requisito esplicito della milestone.
+
+*Perché è una vista esclusivamente read-only.* Non esistono ancora endpoint di modifica dei dati anagrafici del tenant lato backend, e introdurli non è nello scope di questa milestone. Un form di modifica senza un'API di scrittura sottostante anticiperebbe sia il contratto di quell'endpoint sia le regole di validazione che dovrà applicare — decisioni da discutere e approvare a parte, non da dedurre implicitamente costruendo prima la UI.
+
+**Alternative scartate:**
+
+*Iniettare `TenantAdminService` anche nel tab, per coerenza con `TenantDetailComponent`* — scartato perché vanificherebbe il motivo stesso per cui `TenantDetailState` è stato introdotto in P7: se un tab può comunque richiamare il servizio direttamente, lo stato condiviso diventa un canale opzionale anziché l'unico punto di accesso al dato.
+
+*Usare il getter sincrono `TenantDetailState.tenant` invece dell'observable `tenant$` nel template* — scartato perché il getter richiede un accesso imperativo (es. in `ngOnInit`) e non si aggiorna automaticamente se lo stato cambiasse in futuro (es. dopo un salvataggio in un tab di modifica); l'`async` pipe su `tenant$` mantiene il componente reattivo senza subscribe/unsubscribe manuali.
+
+*Aggiungere già ora pulsanti "Modifica" disabilitati o placeholder visivi* — scartato per lo stesso motivo emerso in P4 (ADR-011): comunicherebbe funzionalità non ancora esistenti, in violazione del principio "nessun placeholder tecnico" applicato coerentemente in tutte le milestone del backoffice.
+
+**Conseguenze:**
+- `TenantInfoTabComponent` non ha dipendenze da `TenantAdminService`: qualunque futura richiesta di aggiungere una chiamata diretta andrà trattata come una deviazione dal pattern stabilito, non come la norma
+- Se `TenantDetailState` venisse rimosso in una futura Architecture Review (nota di debito tecnico in ADR-014), il tab Info sarebbe il primo componente da aggiornare, insieme alla shell
+- Il tab non prevede alcuno stato locale di editing: quando la modifica del tenant sarà approvata come milestone propria, sarà verosimilmente un componente separato (es. `TenantEditFormComponent`) o un'estensione esplicitamente approvata di questo tab

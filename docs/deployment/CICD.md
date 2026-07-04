@@ -27,18 +27,18 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | **Trigger** | `push` su `dev` (tipicamente conseguenza del merge di una PR) |
 | **Job 1 — Backend: build + unit test** | Come sopra |
 | **Job 2 — Frontend: build + unit test** | Come sopra |
-| **Job 3 — Build immagine backend** | Solo se Job 1 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `dev` |
-| **Job 4 — Build immagine frontend** | Solo se Job 2 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `dev` |
+| **Job 3 — Build immagine backend** | Solo se Job 1 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `develop` |
+| **Job 4 — Build immagine frontend** | Solo se Job 2 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `develop` |
 | **Job 5 — Push immagini su registry** | Dopo Job 3 e Job 4, push su GHCR |
 | **Ordine di esecuzione** | (Job 1 → Job 3) e (Job 2 → Job 4) in parallelo tra loro, poi Job 5 dopo entrambi |
 | **Dipendenze** | Job 3 dipende da Job 1, Job 4 dipende da Job 2, Job 5 dipende da Job 3 + Job 4 |
-| **Artifact prodotti** | Immagini Docker `centro-cinofilo-backend:dev` / `:sha-<shortsha>`, `centro-cinofilo-frontend:dev` / `:sha-<shortsha>` su GHCR |
+| **Artifact prodotti** | Immagini Docker `backend:develop` / `:sha-<shortsha>`, `frontend:develop` / `:sha-<shortsha>` su GHCR (vedi convenzione completa in `DOCKER_IMAGES.md`) |
 
 ### 3. Workflow "Release"
 
 | | |
 |---|---|
-| **Trigger** | `push` di un tag `v*.*.*` (creato al merge `dev` → `main`, vedi `RELEASE_PROCESS.md`) |
+| **Trigger** | `push` di un tag `v*.*.*` o `v*.*.*-rc.*` (le RC si taggano direttamente su `dev`, le release stabili al merge `dev` → `main` — non esiste più un branch `release/*`, vedi `GITFLOW.md`) |
 | **Job 1 — Suite completa** | `mvn verify` (Surefire + Failsafe, quindi anche i 101 Integration Test con Testcontainers — richiede un runner con Docker disponibile, es. i runner standard `ubuntu-latest` di GitHub Actions, che supportano Docker-in-Docker nativamente, a differenza del sandbox Replit) |
 | **Job 2 — Build immagini versionate** | Solo se Job 1 passa. Tag `vX.Y.Z` + `latest` per entrambe le immagini |
 | **Job 3 — Push su registry** | Dopo Job 2 |

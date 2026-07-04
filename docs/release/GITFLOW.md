@@ -13,15 +13,31 @@ Rilevato dal repository:
 
 Non esistono oggi branch `feature/*`, `hotfix/*` o `release/*`: tutto il lavoro finora è confluito direttamente su `dev` tramite commit diretti. Questo è accettabile nella fase attuale (sviluppatore singolo, nessun collaboratore), ma non scala quando si introduce CI/CD e revisione del codice.
 
+## `release/*`: valutazione esplicita e decisione di non adottarlo
+
+**Domanda:** un branch `release/*` porta benefici concreti per un progetto mantenuto da un solo sviluppatore?
+
+**Analisi.** Il branch `release/*` esiste, nei modelli Git Flow classici, per risolvere un problema preciso: permettere a un team di **continuare a sviluppare nuove feature su `dev`** mentre **un'altra persona (o sottogruppo) stabilizza** una release già "congelata" in parallelo, senza che le due attività si intralcino. È uno strumento di **coordinamento tra persone che lavorano in parallelo su obiettivi diversi**.
+
+Con un solo sviluppatore questo problema non esiste:
+- Non c'è nessun secondo flusso di lavoro da isolare — chi stabilizza la release è la stessa persona che svilupperebbe la prossima feature, quindi la "protezione" del branch `release/*` non previene alcun conflitto reale, semplicemente perché non c'è un altro attore concorrente.
+- Il "congelamento" delle feature durante la stabilizzazione può essere ottenuto semplicemente **decidendo di non iniziare una nuova feature** finché la release corrente non è fuori — una decisione organizzativa, non qualcosa che richiede un branch dedicato per essere applicata.
+- Le release candidate (`vX.Y.Z-rc.N`, vedi `VERSIONING.md`) possono essere taggate direttamente su `dev`: se un problema emerge durante la stabilizzazione, si corregge con un commit su `dev` e si ritagga una nuova RC, senza bisogno di un branch separato in cui applicare lo stesso fix due volte.
+- Un branch in più significa un passaggio in più da ricordare, documentare e (in futuro) automatizzare nella CI — costo di processo reale, a fronte di un beneficio che in questo contesto è nullo.
+
+**Decisione: `release/*` viene eliminato dal modello.** Il flusso di rilascio passa direttamente `dev` → `main` (via PR, vedi `RELEASE_PROCESS.md`), con le RC tagate su `dev` quando serve un ciclo di stabilizzazione più lungo.
+
+**Quando riconsiderarlo:** se in futuro si aggiungono collaboratori che lavorano in parallelo su feature diverse mentre un rilascio è in stabilizzazione, il problema che `release/*` risolve torna reale — a quel punto la sua reintroduzione va rivalutata esplicitamente (non va aggiunto preventivamente ora "perché potrebbe servire").
+
 ## Flusso proposto
 
 ```
 main        ●───────────────●───────────────●──────────▶   (produzione, sempre stabile)
-             \  v1.2.0      / \  v1.3.0     /
+             \  v0.3.0      / \  v0.4.0     /
               \            /   \           /
 hotfix/*       ●──────────       (solo se serve un fix urgente su main)
                                   
-dev         ●──●──●──●──●──●──●──●──●──●──●──●──▶   (integrazione continua)
+dev         ●──●──●──●──●──●──●──●──●──●──●──●──▶   (integrazione continua; le RC si taggano qui)
              \    \    \    \
 feature/*     ●────●    ●────●   (una feature alla volta, come da flusso CTO in replit.md)
 ```
@@ -52,15 +68,13 @@ feature/*     ●────●    ●────●   (una feature alla volta
   2. `hotfix/*` → `dev` (back-merge, per non perdere il fix nelle prossime release regolari)
 - Questo evita il classico bug "il hotfix ha risolto il problema in produzione ma è ricomparso alla release successiva perché non era su `dev`".
 
-### `release/*` (facoltativo, da usare solo quando serve)
+### Stabilizzazione di una release (senza branch dedicato)
 
-Non è un branch da usare per ogni release. Con un solo sviluppatore e un ritmo di rilascio non frenetico, la maggior parte delle release può andare direttamente `dev` → `main` (via PR) e taggata da lì.
-
-Un branch `release/*` (es. `release/1.4.0`, creato da `dev`) diventa utile solo quando:
-- si vogliono congelare le feature (feature freeze) mentre si stabilizza una release con più modifiche accumulate;
-- servono più cicli di test/QA con tag `-rc.N` prima del rilascio definitivo, senza bloccare `dev` per le feature successive.
-
-In quel caso: `release/*` riceve solo bugfix di stabilizzazione (mai nuove feature), si taggano le RC da lì, e a fine stabilizzazione si merge sia su `main` (con tag stabile) sia back su `dev`.
+Quando una release accumula più modifiche e serve un periodo di stabilizzazione prima del merge su `main`, questo avviene **direttamente su `dev`**, senza aprire `release/*` (vedi motivazione sopra):
+1. Si smette di aprire nuove `feature/*` verso `dev` finché la release non è fuori (decisione organizzativa, non un vincolo tecnico del branch).
+2. Si tagga una RC direttamente sul commit di `dev` (`vX.Y.Z-rc.1`).
+3. Eventuali bugfix di stabilizzazione vanno come commit diretti su `dev`, poi si ritagga una nuova RC (`-rc.2`, `-rc.3`, ...).
+4. Quando una RC è verificata, si apre la PR `dev` → `main` e si tagga la release stabile (`vX.Y.Z`, stesso commit dell'ultima RC).
 
 ## Ciclo di vita completo di una feature
 

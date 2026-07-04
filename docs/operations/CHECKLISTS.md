@@ -23,12 +23,17 @@
 
 ## Rollback
 
-1. Individuare l'ultimo tag stabile precedente noto-funzionante.
-2. Aggiornare `IMAGE_TAG` nel file `.env` del server al tag precedente.
-3. `docker compose pull && docker compose up -d` (nessun rebuild: l'immagine precedente è già sul registry).
-4. Verificare healthcheck e smoke test come nella checklist post-release.
-5. **Se il problema coinvolge lo schema del database** (non solo il codice applicativo): il rollback del codice da solo potrebbe non bastare o essere pericoloso (es. il codice precedente non conosce una colonna nuova già scritta dai dati). In questo caso, valutare se serve un rollback dello schema o solo un fix-forward (nuova release correttiva rapida) invece di un rollback — decisione caso per caso, da prendere consapevolmente, non automaticamente.
-6. Comunicare l'incidente e la causa una volta risolto (post-mortem informale, anche solo una nota in `docs/ai/DECISIONS.md` o in un log operativo, se l'incidente ha rivelato un problema strutturale da correggere).
+Procedura dettagliata passo-passo in `docs/release/RELEASE_PROCESS.md` (sezione 9). Riepilogo operativo:
+
+- [ ] Versione target del rollback individuata e confermata (non assunta).
+- [ ] Nuovi deploy congelati per la durata dell'operazione.
+- [ ] `IMAGE_TAG` nel file `.env` del server aggiornato al tag precedente.
+- [ ] `docker compose pull` eseguito (nessun rebuild: l'immagine precedente è già sul registry).
+- [ ] `docker compose up -d --no-build` eseguito.
+- [ ] Image ID/tag in esecuzione verificato esplicitamente (non assunto) come corrispondente al target.
+- [ ] Healthcheck e smoke test verdi come nella checklist post-release.
+- [ ] Impatto sullo schema DB valutato: rollback del solo codice sicuro solo se le migration della release erano additive/retrocompatibili; altrimenti fix-forward o disaster recovery.
+- [ ] Incidente documentato (causa, versione rotta, versione ripristinata, eventuale problema strutturale emerso).
 
 ## Disaster Recovery (perdita totale o grave corruzione del server)
 

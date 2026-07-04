@@ -42,14 +42,20 @@ Namespace basato sul repository GitHub già esistente (`simonebarberini/centro-c
 - **AWS ECR / Google Artifact Registry:** richiederebbero un account cloud aggiuntivo (AWS/GCP) con relative credenziali da gestire, quando l'infrastruttura di deploy prevista è un singolo VPS Hetzner indipendente da quei provider — complessità non giustificata.
 - **Registry self-hosted:** aggiunge un servizio in più da mantenere e mettere in sicurezza (autenticazione, TLS, backup del registry stesso) per un beneficio marginale rispetto a un registry gestito gratuito come GHCR.
 
-## Versioning delle immagini
+## Convenzione completa dei tag Docker
 
-| Tag | Quando viene creato | Uso |
-|---|---|---|
-| `sha-<shortsha>` | Ad ogni push su `dev` (workflow "Push su dev") | Tracciabilità: ogni build è riconducibile esattamente a un commit |
-| `dev` | Ad ogni push su `dev`, sovrascrive il precedente | Ultima build di integrazione, utilizzabile per un eventuale ambiente di staging |
-| `vX.Y.Z` | Alla creazione del tag Git di release (workflow "Release") | Immagine immutabile della release — **questo è il tag da usare in produzione** |
-| `vX.Y.Z-rc.N` | Se si usa un ciclo di release candidate (vedi `GITFLOW.md`) | Test pre-release su un ambiente di stabilizzazione |
-| `latest` | Sempre allineato all'ultima release stabile su `main` | Solo come riferimento/comodo per chi esplora il registry — **da non usare nei file di Compose di produzione** |
+Nota terminologica: il branch Git si chiama `dev`, ma il tag Docker corrispondente si chiama **`develop`** — scelta deliberata per evitare ambiguità sul registry tra "il branch `dev`" e "l'ambiente di sviluppo/`development`"; `develop` è inequivocabile anche per chi guarda solo la lista dei tag pubblicati, senza conoscere i nomi dei branch del repository.
 
-**Regola importante:** i file Docker Compose di produzione devono sempre puntare a un tag esplicito (`vX.Y.Z`), mai a `latest` o `dev`. Usare `latest` in produzione rende il deploy non deterministico (un `docker compose pull` in due momenti diversi potrebbe scaricare immagini diverse senza che nessuno abbia cambiato la configurazione) e complica il rollback (non si sa più con certezza quale versione era in esecuzione prima).
+Entrambe le immagini (`backend`, `frontend`) seguono esattamente la stessa convenzione di tag, pubblicati dalla stessa pipeline nello stesso momento (build sempre accoppiata backend+frontend):
+
+| Tag | Immagine/i | Generato da | Quando viene pubblicato | Mutabilità | Uso |
+|---|---|---|---|---|---|
+| `sha-<shortsha>` | backend, frontend | Ogni commit pushato su `dev` | Workflow "Push su dev", ad ogni push | Immutabile (un tag = un commit preciso, mai sovrascritto) | Tracciabilità esatta: risalire dall'immagine al commit sorgente |
+| `develop` | backend, frontend | Ultimo commit di `dev` | Workflow "Push su dev", ad ogni push (sovrascrive il precedente `develop`) | Mutabile (si sposta ad ogni push su `dev`) | Ultima build di integrazione continua, utilizzabile per un eventuale ambiente di staging futuro |
+| `vX.Y.Z-rc.N` | backend, frontend | Tag Git di release candidate, creato su `dev` (vedi `GITFLOW.md`) | Workflow "Release" (o una sua variante), al push del tag `-rc.N` | Immutabile | Verifica pre-release in un ambiente di stabilizzazione, prima del rilascio definitivo |
+| `vX.Y.Z` | backend, frontend | Tag Git di release stabile, creato su `main` | Workflow "Release", al push del tag `vX.Y.Z` | Immutabile — **mai ripubblicato con contenuto diverso** | **Il tag da usare in produzione**, sempre esplicito nei file Compose |
+| `latest` | backend, frontend | Stesso build del tag `vX.Y.Z` più recente su `main` | Workflow "Release", subito dopo la pubblicazione di `vX.Y.Z` (ri-taggata sulla stessa immagine, non ricostruita) | Mutabile (si sposta ad ogni nuova release stabile) | Solo comodità per chi esplora il registry manualmente (`docker pull ...:latest` per provare l'ultima versione) — **da non usare nei file di Compose di produzione** |
+
+**Regola importante:** i file Docker Compose di produzione devono sempre puntare a un tag esplicito e immutabile (`vX.Y.Z`), mai a `latest` o `develop`. Usare un tag mutabile in produzione rende il deploy non deterministico (un `docker compose pull` in due momenti diversi potrebbe scaricare immagini diverse senza che nessuno abbia cambiato la configurazione) e complica il rollback (non si sa più con certezza quale versione era in esecuzione prima).
+
+**Nota su `vX.Y.Z-rc.N`:** con l'eliminazione del branch `release/*` (vedi `GITFLOW.md`), le immagini per una release candidate vengono comunque costruite e pubblicate — cambia solo il branch di origine (`dev` invece di un branch `release/*` dedicato), non il meccanismo di tagging.

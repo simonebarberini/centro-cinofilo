@@ -60,29 +60,77 @@ Il progetto ha già la convenzione corretta: file `.env` non versionato, con `*.
 
 **Evoluzione futura (non necessaria ora):** un secret manager dedicato (es. Docker Secrets, HashiCorp Vault) diventa utile solo quando ci sono più server o più persone che devono accedere ai segreti in modo controllato. Per un singolo VPS con un solo operatore, un file `.env` con permessi ristretti è proporzionato e sufficiente.
 
-## Backup
+## Backup — procedura completa
 
-- **Cosa:** `pg_dump` del database Postgres (unico dato realmente critico e stateful dello stack — backend e frontend sono stateless, ricostruibili da immagine).
-- **Quando:** giornaliero via cron, eseguito da `scripts/backup.sh` dentro/verso il container Postgres.
-- **Retention proposta:** 7 backup giornalieri + 4 settimanali (rotazione automatica nello script, cancellando i più vecchi).
-- **Dove:** primariamente su disco del VPS (`backups/postgres/`), con copia periodica su storage esterno (es. Hetzner Object Storage, compatibile S3) per la disaster recovery — un backup che vive solo sullo stesso disco del server che dovrebbe proteggere non copre lo scenario di perdita totale del VPS.
+Il database PostgreSQL è l'unico dato realmente critico e stateful dello stack (backend e frontend sono stateless, ricostruibili da immagine in qualunque momento). La procedura di backup copre quattro aspetti: dump, frequenza, retention, restore e verifica periodica.
 
-## Restore
+### Dump
 
-Procedura (manuale, documentata in `docs/operations/CHECKLISTS.md`): stop del backend (per evitare scritture concorrenti durante il restore), `pg_restore` del backup scelto in un database pulito, verifica di integrità (conteggio righe per tabella chiave, controllo Flyway `schema_history`), riavvio del backend.
+- Comando: `pg_dump` in **formato custom** (`-F c`), non SQL testuale semplice — il formato custom è compresso, supporta il restore selettivo (singola tabella) e il restore parallelo (`pg_restore -j`), a differenza di un dump SQL piatto.
+  ```
+  pg_dump -F c -d "$POSTGRES_DB" -U "$POSTGRES_USER" -f /backups/postgres/daily/cinofilo_<timestamp>.dump
+  ```
+- Eseguito da `scripts/backup.sh`, lanciato **da dentro la rete Docker** (o via `docker compose exec db pg_dump ...`), senza esporre la porta Postgres sull'host.
+- Il dump include schema e dati (comportamento di default di `pg_dump`): non serve gestire Flyway separatamente, `schema_history` è parte del dump come qualunque altra tabella.
 
-**Principio operativo:** un backup va testato periodicamente con un restore reale (es. su un ambiente locale/di test), non solo prodotto e archiviato — un backup mai ripristinato è solo un'ipotesi, non una garanzia.
+### Frequenza
 
-## Logging
+- **Giornaliero**, via cron, in un orario a basso traffico (es. 03:00 locale del server).
+- Non è necessario un backup più frequente (es. orario) nella fase attuale: il volume di scrittura di un centro cinofilo (prenotazioni, non transazioni finanziarie ad alto volume) rende accettabile un RPO (Recovery Point Objective) di 24 ore — vedi anche `docs/operations/CHECKLISTS.md`.
 
-- Nel breve termine: `docker compose logs`, con rotazione configurata a livello di driver di logging Docker (`max-size`, `max-file`) per evitare che i log riempiano il disco del VPS nel tempo.
-- Evoluzione futura (non necessaria ora, da valutare solo se il volume di log lo giustifica): centralizzazione con stack leggero tipo Loki + Grafana, o invio a un servizio gestito.
+### Retention
 
-## Monitoring
+| Tipo | Frequenza di creazione | Quanti se ne tengono | Dove |
+|---|---|---|---|
+| Giornaliero | 1/giorno | 7 (una settimana) | `backups/postgres/daily/` |
+| Settimanale | 1/settimana (es. il dump della domenica, promosso) | 4 (un mese) | `backups/postgres/weekly/` |
 
-Approccio minimo e proporzionato alla scala attuale (un VPS, pochi tenant):
-1. **Healthcheck Docker** già previsti nei Compose esistenti (`depends_on: condition: service_healthy`).
-2. **Endpoint Actuator** del backend, protetto (vedi FASE 1 Roadmap — "Protezione endpoint Actuator", ancora da verificare/implementare), usato come sonda di salute applicativa.
-3. **Monitoraggio esterno di uptime** (es. UptimeRobot o simili, gratuito per un singolo endpoint) come primo livello di allerta se il sito non risponde — indipendente dal server stesso, quindi rileva anche un VPS completamente giù.
+Rotazione automatica nello script: cancellazione dei backup giornalieri oltre i 7 più recenti; ogni domenica, copia (non spostamento) dell'ultimo dump giornaliero in `weekly/`, con purge di quelli oltre i 4 più recenti.
+
+### Copia off-site
+
+- Dopo ogni dump riuscito, copia su storage esterno S3-compatibile (es. Hetzner Object Storage), via `rclone` o `aws s3 cp` puntato all'endpoint Hetzner.
+- **Motivazione:** un backup che vive solo sullo stesso disco del server che dovrebbe proteggere non copre lo scenario di perdita totale del VPS (guasto hardware, cancellazione accidentale, compromissione) — è lo scenario che la disaster recovery deve coprire (vedi `docs/operations/CHECKLISTS.md`).
+- Retention sullo storage esterno: stessa politica (7 giornalieri + 4 settimanali), eventualmente estesa (es. + 1 mensile) dato il costo marginale molto basso dello storage object rispetto al disco del VPS.
+
+### Restore
+
+Procedura manuale (documentata passo-passo in `docs/operations/CHECKLISTS.md`):
+1. **Stop del backend** (`docker compose stop backend`) — evita scritture concorrenti durante il restore.
+2. Creazione di un database vuoto di appoggio (o drop/recreate del database esistente, a seconda dello scenario: restore di verifica vs restore reale post-incidente).
+3. `pg_restore` del dump scelto:
+   ```
+   pg_restore -d "$POSTGRES_DB" --clean --if-exists /backups/postgres/daily/cinofilo_<timestamp>.dump
+   ```
+4. **Verifica di integrità:** conteggio righe sulle tabelle chiave (tenant, booking, dog, customer), controllo che `flyway_schema_history` risulti coerente con la versione applicativa che si sta per riavviare.
+5. Riavvio del backend, smoke test applicativo (login, lettura di una prenotazione nota).
+
+### Verifica periodica dei backup
+
+**Principio operativo:** un backup mai ripristinato è solo un'ipotesi, non una garanzia. La verifica va pianificata, non lasciata a "se un giorno servirà":
+- **Cadenza proposta:** mensile.
+- **Procedura:** restore dell'ultimo backup giornaliero disponibile in un ambiente separato (es. un database Postgres temporaneo, anche locale/di test — mai sull'istanza di produzione), seguito dai controlli di integrità del punto 4 sopra.
+- **Esito registrato:** un log minimo (anche solo una riga in un file o in una nota operativa) con data del test e esito, per avere evidenza storica che i backup sono effettivamente utilizzabili, non solo generati.
+- Se il restore di verifica fallisce, è un incidente da trattare con priorità immediata: un backup non ripristinabile equivale, in pratica, a non avere backup.
+
+## Logging — soluzione minimale per la V1
+
+Nessuno stack di monitoring/logging complesso in questa fase (niente Loki/Grafana/ELK). Tre fonti, tutte già presenti o ottenibili senza nuovi servizi:
+
+1. **Docker logs applicativi** (backend, frontend): `docker compose logs -f <servizio>` per consultazione diretta; rotazione configurata a livello di driver di logging Docker (`max-size`, `max-file` nel Compose) per evitare che i log riempiano il disco del VPS nel tempo — questa è l'unica configurazione da introdurre, non un servizio aggiuntivo.
+2. **Log di Caddy**: Caddy produce log di accesso strutturati (JSON) per ogni richiesta HTTP che attraversa l'edge — utili per individuare errori 5xx, pattern di traffico anomalo, tentativi di accesso a path inesistenti. Stessa politica di rotazione (dimensione/numero file) applicata al file di log di Caddy sul disco del VPS.
+3. **Endpoint Actuator Health** del backend (protetto — vedi FASE 1 Roadmap, "Protezione endpoint Actuator"): non è un log ma una sonda di stato, consultabile manualmente o da un controllo esterno.
+
+**Evoluzione futura (esplicitamente non necessaria per la V1):** centralizzazione dei log (Loki+Grafana o simili) diventa giustificata solo quando il volume o il numero di servizi rende la consultazione diretta via `docker compose logs` impraticabile — non è il caso con due container applicativi e un solo VPS.
+
+## Monitoring — soluzione minimale per la V1
+
+Per la prima versione operativa, niente stack di monitoring complesso (niente Prometheus/Grafana): tre elementi, tutti a costo/complessità marginale:
+
+1. **Actuator Health** (`/actuator/health`, protetto): sonda di salute applicativa del backend, verificata dal workflow "Manual Deploy" subito dopo ogni deploy (vedi `CICD.md`) e utilizzabile per un controllo esterno periodico.
+2. **Docker logs**: consultazione diretta (`docker compose logs`) come prima linea di debug in caso di anomalia; gli healthcheck già previsti nei Compose esistenti (`depends_on: condition: service_healthy`) offrono un primo segnale automatico di container non sano.
+3. **Caddy logs**: oltre all'uso per il debug (vedi Logging sopra), i log di accesso di Caddy sono anche la fonte più semplice per capire "il sito ha ricevuto traffico ed è stato raggiungibile" — un controllo grezzo ma sufficiente per la scala attuale, senza bisogno di un tool di monitoring dedicato.
+
+Nessun monitoraggio esterno di uptime (es. UptimeRobot) è incluso come requisito in questa fase: **può essere aggiunto in autonomia in qualunque momento senza impatto sul resto del disegno** (è un servizio esterno che fa polling di un URL pubblico, indipendente dallo stack), ma non è trattato come parte della V1 minimale per restare fedeli al perimetro "Actuator Health + Docker logs + Caddy logs" richiesto.
 
 **Evoluzione futura (non necessaria ora):** Prometheus + Grafana per metriche applicative dettagliate, da introdurre solo quando la scala o i requisiti di SLA lo richiedono davvero — introdurlo ora significherebbe mantenere un'infrastruttura di monitoring più complessa del sistema che monitora.

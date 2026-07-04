@@ -33,7 +33,7 @@ jobs:
         run: mvn -B clean test
 
   frontend:
-    name: Frontend (build + unit test)
+    name: Frontend (build only, vedi ADR-022)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -53,7 +53,5 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build --if-present
+        run: npm run build
 
-      - name: Run unit test (Karma + ChromeHeadless)
-        run: npx ng test --watch=false --browsers=ChromeHeadless

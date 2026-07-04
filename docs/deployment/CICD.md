@@ -1,7 +1,6 @@
 # CI/CD Pipeline Design — Centro Cinofilo
 
-**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con una differenza rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`dev` (scelta transitoria, vedi ADR-021). Le pipeline **"Push su dev"**, **"Release"** e **"Manual Deploy"** (sezioni 2-4) restano solo design, non ancora implementate: richiedono build/push di immagini Docker e deploy, esplicitamente fuori scope della milestone corrente.
-## Perché GitHub Actions (scelta per l'implementazione futura, solo indicata qui)
+**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`dev` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). Le pipeline **"Push su dev"**, **"Release"** e **"Manual Deploy"** (sezioni 2-4) restano solo design, non ancora implementate: richiedono build/push di immagini Docker e deploy, esplicitamente fuori scope della milestone corrente.
 
 Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberini/centro-cinofilo`). GitHub Actions è la scelta naturale perché nativa alla piattaforma già in uso (nessun account/servizio terzo da collegare), con integrazione diretta al Container Registry di GitHub (GHCR) tramite `GITHUB_TOKEN` senza credenziali aggiuntive da gestire (vedi `DOCKER_IMAGES.md`). Alternative come GitLab CI, CircleCI o Jenkins richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo, senza un vantaggio concreto per questo progetto.
 
@@ -12,8 +11,8 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | | |
 |---|---|
 | **Trigger** | `pull_request` verso `dev` o `main`, **più `push`** verso `dev` o `main` (differenza rispetto al design originale, vedi ADR-021) |
-| **Job 1 — Backend** | `mvn -B clean test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) || **Job 2 — Frontend** | `npm ci` + `npm run build` + `ng test --watch=false --browsers=ChromeHeadless`, con cache npm nativa (`actions/setup-node`) |
-| **Ordine di esecuzione** | Job 1 e Job 2 **in parallelo** (indipendenti, nessuna dipendenza tra backend e frontend a livello di build/unit test) |
+| **Job 1 — Backend** | `mvn -B clean test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) |
+| **Job 2 — Frontend** | `npm ci` + `npm run build` — **solo build**, nessun test eseguito (la suite di test Angular non esiste ancora, vedi ADR-022)| **Ordine di esecuzione** | Job 1 e Job 2 **in parallelo** (indipendenti, nessuna dipendenza tra backend e frontend a livello di build/unit test) |
 | **Dipendenze** | Nessuna tra i due job |
 | **Artifact prodotti** | Nessuno (report di test/coverage allegati come artifact è un possibile miglioramento futuro, non incluso ora) |
 | **Esito** | Check di stato su PR/push; con branch protection attiva in futuro, blocca il merge se rosso |

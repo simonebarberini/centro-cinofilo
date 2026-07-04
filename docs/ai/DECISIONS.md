@@ -621,3 +621,35 @@ Nessuna modifica a `PlatformAdminBootstrap`, `PlatformAdminProperties` o al comp
 - Ogni push o PR verso `main`/`dev` ora produce un check di stato reale (visibile anche come badge in `README.md`), con build e unit test sia backend che frontend.
 - Nessun impatto sull'applicazione in esecuzione: la pipeline agisce solo su GitHub, non tocca Docker, ambienti di deploy o dati.
 - Le pipeline "Push su dev" (build immagini `:develop`), "Release" (suite completa + immagini versionate + GitHub Release) e "Manual Deploy" restano disegno non implementato, da affrontare come milestone separate future, quando si deciderà di introdurre Docker build/GHCR/deploy.
+
+---
+
+## ADR-022 — Pipeline frontend: solo build, nessun test Angular (temporaneo)
+
+**Stato:** implementato.
+
+**Contesto.** Dopo l'attivazione di `validate.yml` (ADR-021), il job frontend eseguiva anche `ng test --watch=false --browsers=ChromeHeadless`. La pipeline fallisce sistematicamente con `TS18003: No inputs were found in tsconfig.spec.json`, perché il progetto Angular non contiene ancora nessun file `*.spec.ts`: la suite di unit test frontend non è mai stata scritta, non è un problema di configurazione.
+
+**Problema.** Tenere in pipeline un comando di test che fallisce sempre, in assenza di una suite reale, lascia solo due strade concrete: (a) introdurre `.spec.ts` fittizi solo per far tornare verde la pipeline, oppure (b) rimuovere l'esecuzione dei test finché non esiste una suite vera. La prima opzione produce un segnale falso — una pipeline verde che non verifica nulla sul frontend — più dannoso di una pipeline che dichiara esplicitamente cosa copre e cosa no.
+
+**Decisione.** Il job frontend di `validate.yml` esegue **esclusivamente**:
+- `npm ci`
+- `npm run build`
+
+Rimossi completamente: `npm test` / `ng test`, Karma, ChromeHeadless. Il job non verifica più la correttezza logica del codice frontend, solo che il progetto compili.
+
+**Perché la pipeline frontend valida solo la build.** È l'unica cosa che il progetto può onestamente garantire oggi: che il codice Angular compili senza errori. Verificare anche la logica applicativa richiede una suite di test che semplicemente non esiste ancora — includerla in pipeline senza che esista significa affermare una garanzia falsa.
+
+**Perché i test Angular non vengono eseguiti.** Non per una scelta di scope o di rischio, ma perché **la suite non esiste**: zero file `.spec.ts` nel progetto. Non è una regressione né un problema di ambiente CI (a differenza del backend, dove gli unit test esistono e passano) — è un gap di copertura reale, indipendente da questa pipeline.
+
+**Natura della decisione: temporanea.** Questa non è la configurazione a regime della pipeline frontend, ma lo stato transitorio finché non verrà scritta una prima suite di unit test Angular. **Quando la suite reale verrà introdotta, il job frontend andrà esteso per eseguire nuovamente `ng test --watch=false --browsers=ChromeHeadless`**, ripristinando la copertura di test rimossa con questa ADR.
+
+**Alternative scartate.**
+- **Scrivere `.spec.ts` fittizi (es. `expect(true).toBe(true)`) solo per far passare `ng test` in pipeline:** scartata esplicitamente — darebbe un falso senso di sicurezza (badge verde, zero copertura reale) ed è più fuorviante di dichiarare apertamente che i test frontend non sono ancora coperti.
+- **Modificare `tsconfig.spec.json` o `karma.conf.js` per tollerare l'assenza di spec file:** scartata — nasconderebbe il problema a livello di configurazione invece di renderlo esplicito in pipeline e in questa ADR; inoltre fuori dai vincoli concordati per questa modifica (nessuna modifica ai file di configurazione Angular/Karma).
+- **Lasciare la pipeline rossa finché non esiste una suite di test:** scartata — bloccherebbe ogni check di build su ogni push/PR per un problema (assenza di test) che il job di build non può comunque risolvere; meglio un segnale verde onesto sulla build, con il gap di test documentato esplicitamente qui.
+
+**Conseguenze.**
+- Il job frontend in `validate.yml` non fallisce più per `TS18003`, ma copre solo la compilazione, non la logica applicativa.
+- `docs/deployment/CICD.md` aggiornato per riflettere che il Job 2 (Frontend) della pipeline "Pull Request" esegue solo build.
+- Resta un debito tecnico esplicito e tracciato: introdurre una prima suite di unit test Angular è un prerequisito per ripristinare la copertura di test in questa pipeline (da riprendere in una milestone futura dedicata al frontend, non decisa qui).

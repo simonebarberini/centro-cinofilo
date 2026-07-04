@@ -12,8 +12,7 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | | |
 |---|---|
 | **Trigger** | `pull_request` verso `dev` o `main`, **più `push`** verso `dev` o `main` (differenza rispetto al design originale, vedi ADR-021) |
-| **Job 1 — Backend** | `mvn -B test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) |
-| **Job 2 — Frontend** | `npm ci` + `npm run build` + `ng test --watch=false --browsers=ChromeHeadless`, con cache npm nativa (`actions/setup-node`) |
+| **Job 1 — Backend** | `mvn -B clean test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) || **Job 2 — Frontend** | `npm ci` + `npm run build` + `ng test --watch=false --browsers=ChromeHeadless`, con cache npm nativa (`actions/setup-node`) |
 | **Ordine di esecuzione** | Job 1 e Job 2 **in parallelo** (indipendenti, nessuna dipendenza tra backend e frontend a livello di build/unit test) |
 | **Dipendenze** | Nessuna tra i due job |
 | **Artifact prodotti** | Nessuno (report di test/coverage allegati come artifact è un possibile miglioramento futuro, non incluso ora) |

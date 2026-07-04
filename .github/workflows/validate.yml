@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: backend/pom.xml
 
       - name: Build and run unit test (Surefire only, vedi ADR-018)
-        run: mvn -B test
+        run: mvn -B clean test
 
   frontend:
     name: Frontend (build + unit test)

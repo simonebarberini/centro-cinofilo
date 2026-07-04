@@ -602,7 +602,7 @@ Nessuna modifica a `PlatformAdminBootstrap`, `PlatformAdminProperties` o al comp
 **Contesto.** ADR-020 aveva disegnato, senza implementarlo, un insieme di quattro pipeline GitHub Actions (`Pull Request`, `Push su dev`, `Release`, `Manual Deploy` — vedi `docs/deployment/CICD.md`). Questa milestone implementa la prima e più semplice di queste: una pipeline di validazione (build + test) che gira su ogni push/PR, senza toccare build di immagini Docker, GHCR, deploy, VPS, Caddy, backup o monitoring — tutti esplicitamente fuori scope.
 
 **Decisione.** Creato `.github/workflows/validate.yml` con due job paralleli e indipendenti:
-- **Backend:** `actions/setup-java@v4` (Temurin 21, cache Maven nativa) + `mvn -B test` — solo unit test (Surefire), coerente con ADR-018; l'integrazione completa (`mvn verify`, Testcontainers) resta per una pipeline futura ("Release", già disegnata in `CICD.md`).
+- **Backend:** `actions/setup-java@v4` (Temurin 21, cache Maven nativa) + `mvn -B clean test` — solo unit test (Surefire), coerente con ADR-018; l'integrazione completa (`mvn verify`, Testcontainers) resta per una pipeline futura ("Release", già disegnata in `CICD.md`).
 - **Frontend:** `actions/setup-node@v4` (Node 22, cache npm nativa su `frontend/package-lock.json`) + `npm ci` + build + `ng test --watch=false --browsers=ChromeHeadless` (Chrome preinstallato sui runner `ubuntu-latest`, nessuna modifica a `karma.conf.js`).
 - **Trigger:** `pull_request` **e** `push`, entrambi verso `main`/`dev` — differenza rispetto al design originale in `CICD.md`, che prevedeva solo `pull_request` per questa pipeline.
 - **Concurrency:** gruppo per `github.ref` con `cancel-in-progress: true`, per non accumulare run ridondanti su push ravvicinati sullo stesso branch/PR.

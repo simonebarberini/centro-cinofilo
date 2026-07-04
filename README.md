@@ -18,6 +18,14 @@ centro-cinofilo/
 | Documento | Contenuto |
 |-----------|-----------|
 | [docs/docker-guide.md](docs/docker-guide.md) | Spiegazione completa di Docker, Dockerfile, Docker Compose e come sono usati nel progetto |
+| [docs/release/VERSIONING.md](docs/release/VERSIONING.md) | Strategia SemVer, tag, milestone, prerelease |
+| [docs/release/GITFLOW.md](docs/release/GITFLOW.md) | Branching model: main/dev/feature/hotfix/release |
+| [docs/release/RELEASE_PROCESS.md](docs/release/RELEASE_PROCESS.md) | Processo completo di rilascio, dalla feature al deploy |
+| [docs/deployment/CICD.md](docs/deployment/CICD.md) | Design delle pipeline CI/CD (non ancora implementate) |
+| [docs/deployment/DOCKER_IMAGES.md](docs/deployment/DOCKER_IMAGES.md) | Naming, versioning e registry delle immagini Docker |
+| [docs/deployment/SERVER.md](docs/deployment/SERVER.md) | Design del server di produzione (VPS, Caddy, backup, monitoring) |
+| [docs/operations/CHECKLISTS.md](docs/operations/CHECKLISTS.md) | Checklist pre/post-release, rollback, disaster recovery, segreti |
+| [docs/ai/DECISIONS.md](docs/ai/DECISIONS.md) | Architectural Decision Records (ADR-020: strategia di Release & Deployment) |
 
 ## Prerequisiti
 

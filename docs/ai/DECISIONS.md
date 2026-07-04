@@ -555,3 +555,36 @@ Nessuna modifica a `PlatformAdminBootstrap`, `PlatformAdminProperties` o al comp
 - I test `@SpringBootTest`/IT che prima fallivano su Docker funzionante ora dovrebbero superare la fase di avvio del contesto; eventuali fallimenti residui saranno finalmente quelli reali di logica applicativa.
 - Nessun impatto sul comportamento di produzione: `platform-admin.*` restano obbligatorie via env var, senza default, in `application.yml`.
 - Se in futuro si aggiungono nuove property obbligatorie senza default (nuove milestone), vanno considerate anche ai fini dei test: verificare se serve un valore in `AbstractPostgresIT`, seguendo lo stesso pattern.
+
+---
+
+## ADR-020 — Strategia di Release & Deployment
+
+**Stato:** proposto (analisi e documentazione, nessuna implementazione — in attesa di approvazione)
+
+**Contesto.** Il progetto ha raggiunto una maturità tecnica (hardening in corso, Platform Admin Bootstrap, split Surefire/Failsafe) che rende necessario definire un processo di rilascio esplicito, dalla macchina dello sviluppatore fino alla produzione. Ad oggi esistono due Dockerfile multi-stage (`backend/Dockerfile`, `frontend/Dockerfile`), tre configurazioni Docker Compose (`infra/docker/{dev,prod,local-prod}`), un repository GitHub con branch `main`/`dev` e due tag (`v0.1.0`, `v0.2.0`), ma nessuna pipeline CI/CD, nessuna convenzione di branching formalizzata oltre l'uso di fatto di `dev`, e una versione nei manifest (`pom.xml`/`package.json`, `1.0.0`) disallineata dagli ultimi tag Git.
+
+**Problema.** Senza un processo definito: (1) non è chiaro quando/come taggare una release, (2) non esiste un flusso di branching che isoli le feature e permetta hotfix rapidi in produzione senza portarsi dietro lavoro incompleto da `dev`, (3) non esiste automazione che garantisca che ogni release sia stata effettivamente testata (unit + integration) prima di finire in produzione, (4) non esiste un disegno esplicito di come le immagini Docker vengono versionate, pubblicate e deployate su un server reale, (5) non esistono checklist operative per rilascio, rollback e disaster recovery — rischio concreto di rilasci non ripetibili e difficili da invertire in caso di problema.
+
+**Decisione.** Adottare, come disegno di riferimento (dettagliato nei documenti collegati sotto), un processo di release standard basato su:
+- **Versioning:** SemVer a livello di repository (un solo numero di versione per backend+frontend, non versioni indipendenti), fase `0.y.z` fino al completamento di FASE 1+2 della Roadmap, poi `1.0.0`. Dettagli: `docs/release/VERSIONING.md`.
+- **Git Flow:** `main` (produzione, protetto) / `dev` (integrazione) / `feature/*` (una feature alla volta, coerente con il flusso CTO già in `replit.md`) / `hotfix/*` (fix urgenti da `main`, back-merge su `dev`) / `release/*` (facoltativo, solo per stabilizzare release complesse). Dettagli: `docs/release/GITFLOW.md`.
+- **Release Process:** flusso esplicito feature → PR → merge `dev` → build immagini → test di integrazione completo → release (PR `dev`→`main`) → tag → deploy manuale → rollback. Dettagli: `docs/release/RELEASE_PROCESS.md`.
+- **CI/CD (disegno, non implementato):** quattro pipeline GitHub Actions distinte per responsabilità — Pull Request (validazione), Push su dev (build + immagini `:dev`), Release (test completo + immagini `:vX.Y.Z` + GitHub Release), Manual Deploy (trigger manuale verso il server). Dettagli: `docs/deployment/CICD.md`.
+- **Docker images:** due immagini (`backend`, `frontend`), pubblicate su GitHub Container Registry (GHCR), con tag `sha-<shortsha>`/`dev` per le build di integrazione e `vX.Y.Z`/`latest` per le release; divieto di usare `latest`/`dev` nei Compose di produzione. Dettagli: `docs/deployment/DOCKER_IMAGES.md`.
+- **Deployment:** VPS Hetzner con Caddy come reverse proxy edge (TLS automatico) davanti allo stack Docker Compose esistente (Nginx del frontend invariato), struttura di directory dedicata per configurazione/backup/script, backup giornalieri di PostgreSQL con retention e copia esterna. Dettagli: `docs/deployment/SERVER.md`.
+- **Operatività:** checklist pre/post-release, procedura di rollback, disaster recovery, gestione dei segreti. Dettagli: `docs/operations/CHECKLISTS.md`.
+
+**Motivazione.** Ogni scelta sopra riusa convenzioni standard e ampiamente adottate (SemVer, Git Flow semplificato, Conventional Commits, GitHub Actions, GHCR) coerenti con lo stack e l'infrastruttura già scelti dal progetto, senza introdurre servizi o strumenti aggiuntivi non giustificati dalla scala attuale (un VPS, un solo sviluppatore, nessun ambiente di staging). Le motivazioni puntuali di ogni scelta (inclusi i confronti con le alternative) sono documentate nei rispettivi file collegati, per evitare di duplicare qui contenuto già scritto in modo estensivo.
+
+**Conseguenze.**
+- Nessun impatto immediato: questa ADR e i documenti collegati sono puro disegno, nessun workflow YAML, Dockerfile, file Compose o codice applicativo è stato creato o modificato in questa milestone.
+- Diventa esplicito il criterio con cui si deciderà, in una milestone futura separata (da approvare a parte), l'ordine di implementazione: presumibilmente prima Versioning + Git Flow (nessuna dipendenza tecnica), poi CI/CD "Pull Request" e "Push su dev" (bassa rischiosità, nessun tocco alla produzione), poi "Release" e "Manual Deploy" (toccano il deploy reale, da introdurre con più cautela), poi Server/Caddy/backup sul VPS.
+- Segnalata, ma non corretta in questa milestone, l'incoerenza attuale tra i tag Git (`v0.1.0`, `v0.2.0`) e la versione nei manifest (`1.0.0`) — da riallineare quando si implementerà la strategia di versioning.
+
+**Alternative scartate.**
+- **GitLab CI / CircleCI / Jenkins** al posto di GitHub Actions: nessun vantaggio concreto, richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo (dettagli in `docs/deployment/CICD.md`).
+- **Docker Hub / AWS ECR / GCP Artifact Registry / registry self-hosted** al posto di GHCR: maggiore complessità di gestione delle credenziali o infrastruttura aggiuntiva non giustificata per un singolo VPS (dettagli in `docs/deployment/DOCKER_IMAGES.md`).
+- **Versioning indipendente di backend e frontend:** scartato perché i due componenti non sono consumati separatamente — sono sempre co-deployati (dettagli in `docs/release/VERSIONING.md`).
+- **Deploy automatico ad ogni tag/push su `main`:** scartato in favore di un trigger manuale esplicito, per mantenere un controllo umano prima di ogni modifica all'unico ambiente di produzione esistente (dettagli in `docs/release/RELEASE_PROCESS.md` e `docs/deployment/CICD.md`).
+- **`release/*` obbligatorio per ogni rilascio:** scartato come default; reso facoltativo, da usare solo quando serve stabilizzare una release complessa, per non aggiungere overhead di processo quando non necessario (dettagli in `docs/release/GITFLOW.md`).

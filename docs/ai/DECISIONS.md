@@ -592,3 +592,32 @@ Nessuna modifica a `PlatformAdminBootstrap`, `PlatformAdminProperties` o al comp
 - **Branch `release/*` (facoltativo o obbligatorio):** scartato del tutto, non solo reso facoltativo. Risolve un problema di coordinamento tra sviluppatori paralleli che con un solo sviluppatore non esiste; la stabilizzazione si ottiene con una disciplina organizzativa su `dev` (niente nuove feature durante la stabilizzazione) e RC taggate direttamente lì. Da riconsiderare solo se in futuro si aggiungono collaboratori (dettagli in `docs/release/GITFLOW.md`).
 - **`1.0.0` al solo completamento delle fasi funzionali (Hardening + Commercializzazione):** scartato. Un numero di versione `1.0.0` che ignora la maturità del processo di rilascio darebbe un segnale di stabilità non ancora vero — si aggiunge il completamento della milestone Release & Deployment come prerequisito esplicito (dettagli in `docs/release/VERSIONING.md`).
 - **Stack di monitoring/logging completo (Prometheus/Grafana/Loki) già nella V1:** scartato per la scala attuale (un VPS, pochi tenant); la combinazione Actuator Health + Docker logs + Caddy logs copre le esigenze minime senza introdurre infrastruttura da mantenere essa stessa (dettagli in `docs/deployment/SERVER.md`).
+
+---
+
+## ADR-021 — Implementazione della pipeline di validazione CI (`validate.yml`)
+
+**Stato:** implementato.
+
+**Contesto.** ADR-020 aveva disegnato, senza implementarlo, un insieme di quattro pipeline GitHub Actions (`Pull Request`, `Push su dev`, `Release`, `Manual Deploy` — vedi `docs/deployment/CICD.md`). Questa milestone implementa la prima e più semplice di queste: una pipeline di validazione (build + test) che gira su ogni push/PR, senza toccare build di immagini Docker, GHCR, deploy, VPS, Caddy, backup o monitoring — tutti esplicitamente fuori scope.
+
+**Decisione.** Creato `.github/workflows/validate.yml` con due job paralleli e indipendenti:
+- **Backend:** `actions/setup-java@v4` (Temurin 21, cache Maven nativa) + `mvn -B test` — solo unit test (Surefire), coerente con ADR-018; l'integrazione completa (`mvn verify`, Testcontainers) resta per una pipeline futura ("Release", già disegnata in `CICD.md`).
+- **Frontend:** `actions/setup-node@v4` (Node 22, cache npm nativa su `frontend/package-lock.json`) + `npm ci` + build + `ng test --watch=false --browsers=ChromeHeadless` (Chrome preinstallato sui runner `ubuntu-latest`, nessuna modifica a `karma.conf.js`).
+- **Trigger:** `pull_request` **e** `push`, entrambi verso `main`/`dev` — differenza rispetto al design originale in `CICD.md`, che prevedeva solo `pull_request` per questa pipeline.
+- **Concurrency:** gruppo per `github.ref` con `cancel-in-progress: true`, per non accumulare run ridondanti su push ravvicinati sullo stesso branch/PR.
+- **Badge** di stato aggiunto in cima a `README.md`.
+- `docs/deployment/CICD.md` aggiornato per riflettere lo stato reale (sezione 1 implementata, sezioni 2-4 ancora solo design).
+
+**Perché anche `push`, non solo `pull_request` (nota transitoria).** Il trigger `pull_request` da solo rispecchierebbe fedelmente il design originale, ma oggi il team (un solo sviluppatore) committa ancora direttamente su `dev`, senza aprire Pull Request: una pipeline attivata solo da PR non validerebbe di fatto nessun commit reale nel workflow attuale. Includere anche `push` garantisce che la validazione sia effettiva fin da subito. **Questa è una scelta esplicitamente transitoria**, legata al processo di sviluppo corrente: quando il progetto adotterà un flusso basato su Pull Request (es. con l'arrivo di collaboratori, o per disciplina propria), il trigger `push` diretto su `dev`/`main` andrà rivalutato e probabilmente rimosso, lasciando solo `pull_request` come previsto dal design originale.
+
+**Alternative scartate.**
+- **Job unico a matrice `[backend, frontend]`:** scartato — gli step dei due stack sono troppo eterogenei per una matrice pulita; il beneficio (fail-fast "vero" tra i due job tramite `strategy.fail-fast`) non giustifica la maggiore complessità dello YAML, a fronte di job già paralleli e già interrotti al primo errore di step (comportamento nativo di GitHub Actions).
+- **Trigger solo su `pull_request` (fedele al design originale):** scartato per ora, per il motivo spiegato sopra; resta l'obiettivo a regime.
+- **Maven Wrapper (`mvnw`) per pinnare la versione Maven:** non introdotto in questa milestone — il Maven preinstallato sui runner `ubuntu-latest` è già compatibile con il requisito del progetto (3.9+); valutabile come miglioramento futuro per maggiore riproducibilità, ma non necessario ora.
+- **Suite di integration test completa (`mvn verify`, Testcontainers) in questa pipeline:** scartata — i runner `ubuntu-latest` supportano Docker e la eseguirebbero correttamente, ma includerla qui allontanerebbe questa pipeline dal suo scopo (validazione rapida ad ogni push/PR) e anticiperebbe una responsabilità già assegnata alla pipeline "Release" in `CICD.md`.
+
+**Conseguenze.**
+- Ogni push o PR verso `main`/`dev` ora produce un check di stato reale (visibile anche come badge in `README.md`), con build e unit test sia backend che frontend.
+- Nessun impatto sull'applicazione in esecuzione: la pipeline agisce solo su GitHub, non tocca Docker, ambienti di deploy o dati.
+- Le pipeline "Push su dev" (build immagini `:develop`), "Release" (suite completa + immagini versionate + GitHub Release) e "Manual Deploy" restano disegno non implementato, da affrontare come milestone separate future, quando si deciderà di introdurre Docker build/GHCR/deploy.

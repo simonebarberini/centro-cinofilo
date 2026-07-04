@@ -1,24 +1,24 @@
 # CI/CD Pipeline Design — Centro Cinofilo
 
-**Questo documento descrive il design della pipeline ideale. Nessun workflow YAML viene creato in questa milestone.** L'implementazione (GitHub Actions) è una milestone futura, da approvare separatamente.
-
+**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con una differenza rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`dev` (scelta transitoria, vedi ADR-021). Le pipeline **"Push su dev"**, **"Release"** e **"Manual Deploy"** (sezioni 2-4) restano solo design, non ancora implementate: richiedono build/push di immagini Docker e deploy, esplicitamente fuori scope della milestone corrente.
 ## Perché GitHub Actions (scelta per l'implementazione futura, solo indicata qui)
 
 Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberini/centro-cinofilo`). GitHub Actions è la scelta naturale perché nativa alla piattaforma già in uso (nessun account/servizio terzo da collegare), con integrazione diretta al Container Registry di GitHub (GHCR) tramite `GITHUB_TOKEN` senza credenziali aggiuntive da gestire (vedi `DOCKER_IMAGES.md`). Alternative come GitLab CI, CircleCI o Jenkins richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo, senza un vantaggio concreto per questo progetto.
 
 ## Le quattro pipeline
 
-### 1. Workflow "Pull Request"
+### 1. Workflow "Pull Request" — **implementato** come `validate.yml`
 
 | | |
 |---|---|
-| **Trigger** | `pull_request` verso `dev` o `main` |
-| **Job 1 — Backend** | `mvn test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018) |
-| **Job 2 — Frontend** | `npm ci` + `ng build` + `ng test` (unit test Angular) |
+| **Trigger** | `pull_request` verso `dev` o `main`, **più `push`** verso `dev` o `main` (differenza rispetto al design originale, vedi ADR-021) |
+| **Job 1 — Backend** | `mvn -B test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) |
+| **Job 2 — Frontend** | `npm ci` + `npm run build` + `ng test --watch=false --browsers=ChromeHeadless`, con cache npm nativa (`actions/setup-node`) |
 | **Ordine di esecuzione** | Job 1 e Job 2 **in parallelo** (indipendenti, nessuna dipendenza tra backend e frontend a livello di build/unit test) |
 | **Dipendenze** | Nessuna tra i due job |
-| **Artifact prodotti** | Nessuno (o, opzionalmente, report di test/coverage allegati alla PR come check) |
-| **Esito** | Check di stato sulla PR; con branch protection attiva, blocca il merge se rosso |
+| **Artifact prodotti** | Nessuno (report di test/coverage allegati come artifact è un possibile miglioramento futuro, non incluso ora) |
+| **Esito** | Check di stato su PR/push; con branch protection attiva in futuro, blocca il merge se rosso |
+| **File** | `.github/workflows/validate.yml` |
 
 ### 2. Workflow "Push su dev"
 

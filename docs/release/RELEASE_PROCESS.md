@@ -4,13 +4,13 @@ Processo end-to-end, dalla feature alla produzione, con criteri di "fatto" per o
 
 ```
 feature
-  │  (branch da dev, sviluppo, vedi GITFLOW.md)
+  │  (branch da develop, sviluppo, vedi GITFLOW.md)
   ▼
 pull request
-  │  (verso dev; CI: build + unit test backend/frontend)
+  │  (verso develop; CI: build + unit test backend/frontend)
   ▼
-merge su dev
-  │  (squash merge; dev resta sempre in stato "verde")
+merge su develop
+  │  (squash merge; develop resta sempre in stato "verde")
   ▼
 build
   │  (immagini Docker backend/frontend taggate :sha e :develop, push su registry — vedi DOCKER_IMAGES.md)
@@ -19,7 +19,7 @@ test
   │  (suite di integration test completa, con Docker/Testcontainers realmente disponibile — CI runner, non l'ambiente Replit)
   ▼
 release
-  │  (decisione: quali feature accumulate su dev formano la prossima release; PR dev → main)
+  │  (decisione: quali feature accumulate su develop formano la prossima release; PR develop → main)
   ▼
 tag
   │  (vX.Y.Z su main, secondo VERSIONING.md)
@@ -39,19 +39,19 @@ Vedi `GITFLOW.md`. Ogni feature è isolata in `feature/*`, sviluppata seguendo i
 
 ## 2. Pull Request
 
-Apertura PR `feature/*` → `dev`. Trigga la CI di validazione (vedi `CICD.md`, workflow "Pull Request"): build e unit test di backend e frontend, senza bisogno di Docker/Testcontainers (grazie alla separazione Surefire/Failsafe già in essere, ADR-018).
+Apertura PR `feature/*` → `develop`. Trigga la CI di validazione (vedi `CICD.md`, workflow "Pull Request"): build e unit test di backend e frontend, senza bisogno di Docker/Testcontainers (grazie alla separazione Surefire/Failsafe già in essere, ADR-018).
 
-**Definizione di "fatto":** CI verde, revisione completata, nessun conflitto con `dev`.
+**Definizione di "fatto":** CI verde, revisione completata, nessun conflitto con `develop`.
 
-## 3. Merge su dev
+## 3. Merge su develop
 
-Squash merge della PR su `dev`. Il branch `feature/*` viene eliminato.
+Squash merge della PR su `develop`. Il branch `feature/*` viene eliminato.
 
-**Definizione di "fatto":** `dev` compila, tutti gli unit test passano, la nuova feature è integrata con il resto del codice.
+**Definizione di "fatto":** `develop` compila, tutti gli unit test passano, la nuova feature è integrata con il resto del codice.
 
 ## 4. Build
 
-Ad ogni push su `dev` (post-merge), la pipeline "Push su dev" (vedi `CICD.md`) costruisce le immagini Docker di backend e frontend usando i Dockerfile esistenti (nessuna modifica), le tagga con lo short SHA del commit e con `:develop`, e le pubblica sul registry container (vedi `DOCKER_IMAGES.md`).
+Ad ogni push su `develop` (post-merge), la pipeline "Build Images" (vedi `CICD.md`) costruisce le immagini Docker di backend e frontend usando i Dockerfile esistenti (nessuna modifica), le tagga con lo short SHA del commit e con `:develop`, e le pubblica sul registry container (vedi `DOCKER_IMAGES.md`).
 
 **Perché costruire le immagini già a questo punto e non solo al momento della release:** permette di individuare problemi di build/immagine (non solo di codice) il prima possibile, e rende disponibile un'immagine `:develop` deployabile su un eventuale ambiente di staging, senza aspettare una release formale.
 
@@ -65,9 +65,9 @@ Eseguita in CI (dove Docker è realmente disponibile, a differenza del sandbox d
 
 ## 6. Release
 
-Decisione (umana, non automatica) su quali commit accumulati su `dev` compongono la prossima release. Si apre una PR `dev` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`).
+Decisione (umana, non automatica) su quali commit accumulati su `develop` compongono la prossima release. Si apre una PR `develop` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`).
 
-**Definizione di "fatto":** PR `dev` → `main` approvata, CI verde (rieseguita sul merge commit).
+**Definizione di "fatto":** PR `develop` → `main` approvata, CI verde (rieseguita sul merge commit).
 
 ## 7. Tag
 

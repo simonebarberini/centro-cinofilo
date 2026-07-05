@@ -2,9 +2,9 @@ name: Validate
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
   pull_request:
-    branches: [main, dev]
+    branches: [main, develop]
 
 concurrency:
   group: validate-${{ github.ref }}

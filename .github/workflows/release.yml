@@ -61,11 +61,15 @@ jobs:
       - name: Verify backend version consistency (pom.xml)
         run: |
           POM_VERSION=$(mvn -q -f backend/pom.xml help:evaluate -Dexpression=project.version -DforceStdout)
+          if [[ "$POM_VERSION" == *-SNAPSHOT ]]; then
+            echo "::error::La versione in backend/pom.xml ($POM_VERSION) e' ancora una versione di sviluppo (-SNAPSHOT). Una release non puo' partire da un -SNAPSHOT: rimuovi il suffisso e imposta la versione finale su develop prima di aprire la PR di release (vedi RELEASE_PROCESS.md, step 6, e ADR-027)."
+            exit 1
+          fi
           if [ "$POM_VERSION" != "${{ steps.version.outputs.value }}" ]; then
             echo "::error::La versione in backend/pom.xml ($POM_VERSION) non corrisponde al tag ${{ github.ref_name }} (attesa ${{ steps.version.outputs.value }}). Aggiorna pom.xml prima di taggare (vedi RELEASE_PROCESS.md)."
             exit 1
           fi
-          echo "OK: backend/pom.xml e' allineato a ${{ steps.version.outputs.value }}."
+          echo "OK: backend/pom.xml e' allineato a ${{ steps.version.outputs.value }} (nessun suffisso -SNAPSHOT)."
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -75,11 +79,15 @@ jobs:
       - name: Verify frontend version consistency (package.json)
         run: |
           PKG_VERSION=$(node -p "require('./frontend/package.json').version")
+          if [[ "$PKG_VERSION" == *-SNAPSHOT ]]; then
+            echo "::error::La versione in frontend/package.json ($PKG_VERSION) e' ancora una versione di sviluppo (-SNAPSHOT). Una release non puo' partire da un -SNAPSHOT: rimuovi il suffisso e imposta la versione finale su develop prima di aprire la PR di release (vedi RELEASE_PROCESS.md, step 6, e ADR-027)."
+            exit 1
+          fi
           if [ "$PKG_VERSION" != "${{ steps.version.outputs.value }}" ]; then
             echo "::error::La versione in frontend/package.json ($PKG_VERSION) non corrisponde al tag ${{ github.ref_name }} (attesa ${{ steps.version.outputs.value }}). Aggiorna package.json prima di taggare (vedi RELEASE_PROCESS.md)."
             exit 1
           fi
-          echo "OK: frontend/package.json e' allineato a ${{ steps.version.outputs.value }}."
+          echo "OK: frontend/package.json e' allineato a ${{ steps.version.outputs.value }} (nessun suffisso -SNAPSHOT)."
 
   build-and-publish:
     name: Build and publish release images

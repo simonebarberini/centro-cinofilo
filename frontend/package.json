@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "1.0.0",
+  "version": "0.3.0-SNAPSHOT",
   "description": "Centro Cinofilo Frontend",
   "scripts": {
     "start": "ng serve --proxy-config proxy.conf.json",

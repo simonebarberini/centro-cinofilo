@@ -14,7 +14,7 @@
 
     <groupId>it.cinofilo</groupId>
     <artifactId>backend</artifactId>
-    <version>1.0.0</version>
+    <version>0.3.0-SNAPSHOT</version>
     <name>Centro Cinofilo Backend</name>
     <description>Backend API for Centro Cinofilo</description>
 

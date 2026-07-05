@@ -1,0 +1,31 @@
+Ora aggiungo l'ADR-014 e verifico i file finali.
+
+
+3 actions
+All P7 files and routing are confirmed correct. Since no backend changes were made, 102/102 tests remain valid. Final report:
+
+Consuntivo P7
+File creati
+File	Ruolo
+frontend/src/app/admin/tenants/tenant-detail.model.ts	Interfaccia TenantDetail — rispecchia TenantDetailResponse del backend
+frontend/src/app/admin/tenants/tenant-detail-state.ts	TenantDetailState, servizio route-scoped (BehaviorSubject + getter sincrono) che pubblica il tenant caricato per i futuri tab
+frontend/src/app/admin/tenants/tenant-detail.component.ts	Shell: legge tenantId dalla route, carica il tenant una volta in ngOnInit, gestisce loading/error, pubblica il dato in TenantDetailState
+frontend/src/app/admin/tenants/tenant-detail.component.html	Header con nome/slug tenant, tab bar (Info, Moduli), <router-outlet> per il tab attivo
+File modificati
+File	Modifica
+frontend/src/app/admin/tenants/tenant-admin.service.ts	Aggiunto getById(tenantId) — wrapper su GET /admin/tenants/{tenantId}
+frontend/src/app/admin/admin.routes.ts	Aggiunta route tenants/:tenantId con providers: [TenantDetailState] e children vuoti (placeholder commentati per P8/P9)
+docs/ai/DECISIONS.md	Aggiunta ADR-014
+Decisioni progettuali emerse
+Introdotto TenantDetailState oltre ai 4 elementi esplicitamente elencati. Il requisito "esporre il dato ai componenti figli" richiede un meccanismo di condivisione stato tra shell e tab; il router Angular non propaga automaticamente @Input() alle route figlie. Ho usato il pattern standard Angular: un servizio minimale registrato nell'array providers della route tenants/:tenantId (non providedIn: 'root'), condiviso automaticamente da tutte le route figlie della stessa route grazie all'injector scope del router — nessuna libreria esterna, nessuna logica di dominio nel file.
+
+TenantDetailState con provider a livello di route, non root. Uno stato globale sarebbe rimasto vivo anche dopo aver lasciato la pagina, rischiando di mostrare dati di un tenant precedente alla prima apertura di un tenant successivo.
+
+Tab bar già navigabile verso info/modules, rotte non ancora implementate. Stesso precedente già accettato in P3 (sidebar) e P6 (pulsante "Apri"): la UI naviga verso URL che P8/P9 implementeranno.
+
+ADR create/aggiornate
+ADR-014 in docs/ai/DECISIONS.md — documenta: perché TenantDetailComponent è una shell (separazione tra caricamento dato e visualizzazione per-tab), perché il caricamento avviene una sola volta (la shell non viene ricreata al cambio tab, solo il router-outlet cambia), perché i tab condividono lo stesso stato (provider a livello di route, ereditato automaticamente dalle child routes), perché si usano child routes (URL diretti per tab, back/forward, lazy loading indipendente). Alternative scartate: @Input() manuale, stato globale providedIn: 'root', ricaricamento per-tab, tab senza routing.
+
+Esito compilazione e test
+Backend: nessuna modifica — 102/102 test invariati.
+Frontend: compilazione Angular non eseguibile in questo sandbox (stessa limitazione nota: npm ci bloccato dalla security policy, tsc non disponibile). Verifica manuale eseguita: import path corretti, providers a livello di route è API standard del Router Angular 17 (non richiede import aggiuntivi oltre TenantDetailState), pattern coerente con dogs.component.ts per la lettura del route param (route.snapshot.paramMap.get(...)), nessuna libreria nuova introdotta.

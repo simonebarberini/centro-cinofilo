@@ -7,6 +7,8 @@
 #   MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM
 #   APP_BASE_URL            — public URL of the frontend (e.g. https://app.centrocinofilo.it)
 #   CORS_ALLOWED_ORIGINS    — comma-separated list of allowed frontend origins
+#   PLATFORM_ADMIN_USERNAME, PLATFORM_ADMIN_EMAIL, PLATFORM_ADMIN_PASSWORD
+#                           — credentials for the single ADMIN_APP bootstrap user (see ADR-017)
 # ──────────────────────────────────────────────────────────────────────────────
 
 spring:

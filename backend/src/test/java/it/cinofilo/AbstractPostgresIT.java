@@ -143,5 +143,17 @@ public abstract class AbstractPostgresIT {
         // which Spring resolves as empty at context-load time, causing
         // "Beans must not be empty" and a context startup failure.
         registry.add("management.health.mail.enabled", () -> "false");
+
+        // Platform Admin Bootstrap — required properties (username/email/password)
+        // have no default outside the 'dev' profile, and the integration test
+        // suite runs under 'test'. Without these, PlatformAdminProperties binding
+        // fails (the unresolved "${PLATFORM_ADMIN_EMAIL}" literal fails @Email
+        // validation), the platformAdminBootstrap bean cannot be created, and the
+        // whole ApplicationContext fails to start. These are test-only values,
+        // analogous to the ones in application-dev.yml; production behavior
+        // (mandatory env vars, no defaults) is untouched.
+        registry.add("platform-admin.username", () -> "platform-admin-test");
+        registry.add("platform-admin.email", () -> "platform-admin@test.local");
+        registry.add("platform-admin.password", () -> "PlatformAdminTest123!");
     }
 }

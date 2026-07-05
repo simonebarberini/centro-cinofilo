@@ -1,0 +1,65 @@
+<div class="drawer lg:drawer-open">
+  <input id="admin-sidebar-toggle" type="checkbox" class="drawer-toggle" [checked]="sidebarOpen" />
+
+  <!-- Main content -->
+  <div class="drawer-content flex flex-col">
+    <!-- Topbar -->
+    <div class="navbar bg-base-100 border-b border-base-300 px-4">
+      <div class="flex-none lg:hidden">
+        <label for="admin-sidebar-toggle" class="btn btn-square btn-ghost" (click)="toggleSidebar()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </label>
+      </div>
+      <div class="flex-1">
+        <span class="text-lg font-semibold">◆ Platform Backoffice</span>
+      </div>
+      <div class="flex-none">
+        <button class="btn btn-ghost btn-sm" (click)="logout()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Page content -->
+    <main class="flex-1 p-6 bg-base-200">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="drawer-side z-40">
+    <label for="admin-sidebar-toggle" class="drawer-overlay" (click)="closeSidebar()"></label>
+    <aside class="w-64 min-h-full bg-base-100 border-r border-base-300">
+      <div class="p-4 border-b border-base-300">
+        <h2 class="text-lg font-bold text-primary">◆ Centro Cinofilo</h2>
+        <p class="text-xs text-base-content/50 mt-0.5">Platform Backoffice</p>
+      </div>
+      <ul class="menu p-4 gap-1">
+        @for (item of navItems; track item.path) {
+          <li>
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              (click)="closeSidebar()"
+              class="flex items-center gap-3"
+            >
+              <span class="text-lg">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+      <div class="absolute bottom-0 w-full p-4 border-t border-base-300">
+        <button class="btn btn-ghost btn-sm w-full justify-start gap-3" (click)="logout()">
+          <span>←</span>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>

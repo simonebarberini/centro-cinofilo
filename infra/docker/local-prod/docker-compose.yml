@@ -73,6 +73,10 @@ services:
       # JWT
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-28800000}
+      # Platform admin bootstrap (vedi ADR-017)
+      PLATFORM_ADMIN_USERNAME: ${PLATFORM_ADMIN_USERNAME:-platform-admin}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-platform-admin@local-prod.local}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-LocalProdAdmin123!}
       # Mail → MailHog (nessuna auth, nessun TLS)
       MAIL_HOST: mailhog
       MAIL_PORT: 1025

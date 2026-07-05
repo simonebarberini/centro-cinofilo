@@ -1,0 +1,67 @@
+Prima di modificare la configurazione Maven voglio un'analisi completa.
+
+Obiettivo:
+capire se i test che falliscono sono esclusivamente dovuti all'assenza di Docker/Testcontainers oppure se esistono vere regressioni introdotte dal codice.
+
+Procedi così.
+
+1. Analizza tutti i test in errore.
+
+Per ciascun test indica:
+
+- nome della classe;
+- tipo (Unit Test o Integration Test);
+- motivo reale del fallimento;
+- stacktrace iniziale;
+- se il fallimento avviene:
+  - prima dell'avvio di Spring;
+  - durante Testcontainers;
+  - durante il bootstrap Spring;
+  - durante l'esecuzione del test.
+
+2. Se TUTTI i test in errore dipendono esclusivamente da Testcontainers/Docker:
+
+allora NON modificare il codice applicativo.
+
+Configura invece correttamente la build Maven seguendo le best practice:
+
+- Unit Test eseguiti con maven-surefire-plugin
+- Integration Test (*IT.java) eseguiti con maven-failsafe-plugin
+- mvn test → solo Unit Test
+- mvn verify → Unit Test + Integration Test
+
+Questa modifica NON deve essere un workaround per Replit.
+
+Deve essere una scelta architetturale corretta e definitiva.
+
+Mantieni invariato il comportamento in locale e in CI:
+chi esegue `mvn verify` deve continuare ad eseguire anche tutti gli Integration Test.
+
+3. Se invece trovi anche un solo test che fallisce per una regressione del codice:
+
+FERMATI.
+
+Non modificare il pom.xml.
+
+Indica:
+
+- quale test fallisce;
+- qual è la causa;
+- quale commit/milestone ha introdotto il problema;
+- come intendi correggerlo.
+
+4. Aggiorna anche la documentazione.
+
+Se modifichi la build:
+
+- crea una nuova ADR;
+- documenta la separazione Surefire/Failsafe;
+- spiega perché gli Integration Test vengono eseguiti durante verify e non durante test;
+- documenta che non si tratta di un workaround per Replit ma di una configurazione Maven standard.
+
+Al termine dammi soltanto:
+
+- file modificati;
+- eventuali ADR create;
+- risultato di mvn test;
+- risultato di mvn verify (specificando chiaramente se nel sandbox gli IT restano non eseguibili per mancanza di Docker).

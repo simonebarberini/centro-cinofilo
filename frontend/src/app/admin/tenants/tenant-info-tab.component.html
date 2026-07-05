@@ -1,0 +1,30 @@
+<div *ngIf="tenant$ | async as tenant" class="card bg-base-100 shadow-sm">
+  <div class="card-body">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      <div>
+        <dt class="text-sm text-base-content/60">Nome</dt>
+        <dd class="font-medium">{{ tenant.name }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-base-content/60">Slug</dt>
+        <dd class="font-medium"><code class="text-sm">{{ tenant.slug }}</code></dd>
+      </div>
+      <div>
+        <dt class="text-sm text-base-content/60">Tipo</dt>
+        <dd class="font-medium">{{ tenant.type }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-base-content/60">Capacità box</dt>
+        <dd class="font-medium">{{ tenant.capacityBoxes }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-base-content/60">Email billing</dt>
+        <dd class="font-medium">{{ tenant.billingEmail }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-base-content/60">Data creazione</dt>
+        <dd class="font-medium">{{ tenant.createdAt | date:'dd/MM/yyyy' }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>

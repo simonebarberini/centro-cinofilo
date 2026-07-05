@@ -1,0 +1,26 @@
+Implemento DashboardComponent, aggiorno il routing admin e la ADR in parallelo.
+
+
+10 actions
+Consuntivo P4
+File creati
+File	Ruolo
+frontend/src/app/admin/dashboard/dashboard.component.ts	Componente standalone, nessun constructor/injection, nessuna chiamata HTTP
+frontend/src/app/admin/dashboard/dashboard.component.html	Titolo "Platform Dashboard", descrizione testuale del ruolo del backoffice, area a griglia vuota predisposta alle future card
+File modificati
+File	Modifica
+frontend/src/app/admin/admin.routes.ts	Aggiunta route dashboard (lazy loadComponent) + redirect da path vuoto (/admin) a dashboard
+docs/ai/DECISIONS.md	Aggiunta ADR-011
+Nessuna modifica alla sidebar: il link /admin/dashboard in admin-layout.component.ts era già presente da P3 e ora punta a una route reale — diventa funzionante senza toccare il file.
+
+Decisioni progettuali emerse
+Redirect da /admin a /admin/dashboard invece di rendere dashboard la sola root. Mantiene esplicito nell'URL il concetto di "dashboard" come pagina (utile quando in futuro altre rotte figlie condivideranno il layout), evitando ambiguità tra "root dell'area admin" e "prima pagina".
+
+Nessun dato mock nell'area a griglia. L'area è markup vuoto (non un placeholder visivo tipo box tratteggiati o testo "Coming soon"): comparirà popolata solo quando le metriche di piattaforma saranno definite, senza refactor del layout.
+
+ADR create/aggiornate
+ADR-011 in docs/ai/DECISIONS.md — documenta: ruolo della Dashboard come homepage stabile del backoffice (indipendente dall'ordine di sviluppo delle feature operative), motivo dell'assenza di dati reali in questa milestone (metriche/endpoint non ancora definiti, violazione YAGNI altrimenti), alternative scartate (redirect diretto a Tenant List, dati mock, rimando della Dashboard a dopo Tenant/Catalog).
+
+Esito compilazione e test
+Backend: nessuna modifica — 102/102 test invariati.
+Frontend: compilazione Angular non eseguibile in questo sandbox (npm ci bloccato dalla security policy su shell-quote, tsc non disponibile — limitazione nota, non del codice). Verifica manuale eseguita: import path corretti (./dashboard/dashboard.component → file esistente, export DashboardComponent presente), pattern coerente con le altre route lazy già in uso, sidebar già puntava al path corretto.

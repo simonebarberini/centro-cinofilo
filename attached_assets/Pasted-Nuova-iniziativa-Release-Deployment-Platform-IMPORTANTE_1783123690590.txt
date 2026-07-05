@@ -1,0 +1,182 @@
+Nuova iniziativa: Release & Deployment Platform.
+
+IMPORTANTE
+
+Non implementare ancora GitHub Actions.
+Non creare workflow YAML.
+Non creare Dockerfile nuovi.
+Non modificare Docker Compose.
+Non modificare il codice applicativo.
+
+Questa milestone è esclusivamente di ANALISI e DOCUMENTAZIONE.
+
+Obiettivo:
+
+progettare il processo di rilascio completo del progetto dalla macchina dello sviluppatore fino alla produzione.
+
+Analizza l'intero repository e proponi un'architettura di release professionale coerente con il progetto esistente.
+
+Il risultato dovrà descrivere almeno:
+
+1. Versioning
+
+- strategia SemVer
+- quando creare tag
+- convenzione dei tag
+- milestone
+- prerelease
+- release candidate
+- release stabile
+
+2. Git Flow
+
+analizza il branching attuale e proponi il flusso definitivo:
+
+- main
+- dev
+- feature/*
+- hotfix/*
+- release/* (se utile)
+
+spiega il ciclo completo di una feature.
+
+3. Release Process
+
+descrivi il processo completo:
+
+feature
+↓
+
+pull request
+
+↓
+
+merge su dev
+
+↓
+
+build
+
+↓
+
+test
+
+↓
+
+release
+
+↓
+
+tag
+
+↓
+
+deploy
+
+↓
+
+rollback
+
+4. CI/CD
+
+progetta la pipeline ideale.
+
+NON implementarla.
+
+Descrivi:
+
+- workflow Pull Request
+- workflow Push su dev
+- workflow Release
+- workflow Manual Deploy
+
+Per ciascuno indica:
+
+- trigger
+- job
+- ordine di esecuzione
+- dipendenze
+- artifact prodotti
+
+5. Docker
+
+analizza la struttura esistente.
+
+Proponi:
+
+- immagini da produrre
+- naming
+- versioning immagini
+- registry consigliato
+
+NON creare Dockerfile.
+
+6. Deployment
+
+progetta il deploy definitivo.
+
+Assumi:
+
+- VPS Hetzner
+- Ubuntu LTS
+- Docker
+- Docker Compose
+- Caddy
+- PostgreSQL
+
+Descrivi:
+
+- struttura server
+- directory
+- gestione variabili ambiente
+- backup
+- restore
+- logging
+- monitoring
+
+7. Operatività
+
+definisci:
+
+- checklist pre-release
+- checklist post-release
+- rollback
+- disaster recovery
+- gestione segreti
+
+8. Documentazione
+
+crea una nuova sezione documentale.
+
+Proponi i file da creare sotto docs/, ad esempio:
+
+docs/release/
+docs/deployment/
+docs/operations/
+
+oppure una struttura migliore se la ritieni più coerente.
+
+9. ADR
+
+crea una ADR dedicata che documenti la strategia di Release & Deployment.
+
+Formato:
+
+- Contesto
+- Problema
+- Decisione
+- Motivazione
+- Conseguenze
+- Alternative scartate
+
+IMPORTANTE
+
+Non implementare nulla.
+
+Non scrivere workflow.
+
+Non creare file Docker.
+
+Non modificare codice.
+
+Voglio prima approvare il design.

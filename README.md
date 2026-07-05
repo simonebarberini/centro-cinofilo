@@ -1,5 +1,7 @@
 # Centro Cinofilo
 
+[![Validate](https://github.com/simonebarberini/centro-cinofilo/actions/workflows/validate.yml/badge.svg)](https://github.com/simonebarberini/centro-cinofilo/actions/workflows/validate.yml)
+
 Monorepo per la gestione e amministrazione di un centro di addestramento cinofilo.
 
 ## Struttura del Progetto
@@ -18,6 +20,14 @@ centro-cinofilo/
 | Documento | Contenuto |
 |-----------|-----------|
 | [docs/docker-guide.md](docs/docker-guide.md) | Spiegazione completa di Docker, Dockerfile, Docker Compose e come sono usati nel progetto |
+| [docs/release/VERSIONING.md](docs/release/VERSIONING.md) | Strategia SemVer, tag, milestone, prerelease |
+| [docs/release/GITFLOW.md](docs/release/GITFLOW.md) | Branching model: main/dev/feature/hotfix/release |
+| [docs/release/RELEASE_PROCESS.md](docs/release/RELEASE_PROCESS.md) | Processo completo di rilascio, dalla feature al deploy |
+| [docs/deployment/CICD.md](docs/deployment/CICD.md) | Design delle pipeline CI/CD (non ancora implementate) |
+| [docs/deployment/DOCKER_IMAGES.md](docs/deployment/DOCKER_IMAGES.md) | Naming, versioning e registry delle immagini Docker |
+| [docs/deployment/SERVER.md](docs/deployment/SERVER.md) | Design del server di produzione (VPS, Caddy, backup, monitoring) |
+| [docs/operations/CHECKLISTS.md](docs/operations/CHECKLISTS.md) | Checklist pre/post-release, rollback, disaster recovery, segreti |
+| [docs/ai/DECISIONS.md](docs/ai/DECISIONS.md) | Architectural Decision Records (ADR-020: strategia di Release & Deployment) |
 
 ## Prerequisiti
 
@@ -533,11 +543,11 @@ Vedere la sezione **[Avvio in locale (sviluppo)](#avvio-in-locale-sviluppo)** pe
 Il progetto è progettato per supportare multi-tenancy nel futuro. Le seguenti linee guida devono essere seguite:
 
 - **Ogni entità che sarà tenant-aware deve avere un campo `tenant_id`**: (UUID o Long)
-- **Nel backend**: 
+- **Nel backend**:
   - Il `tenant_id` viene estratto automaticamente dal token JWT dell'utente autenticato
   - Tutte le query JPA devono essere filtrate automaticamente per `tenant_id` tramite JPA filters o aspect
   - Non fidarsi mai del `tenant_id` passato dal client - usare sempre quello del JWT
-- **Nel frontend**: 
+- **Nel frontend**:
   - NON inviare `tenant_id` nelle richieste - il backend lo deduce dal JWT
   - Il frontend invia solo il token JWT nell'header Authorization
 - **Nelle migrazioni SQL**: Includere colonna `tenant_id` in tutte le future tabelle di business logic
@@ -550,10 +560,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
+
     @Column(nullable = false)
     private UUID tenantId;  // Multi-tenancy support - popolato dal backend via JWT
-    
+
     private String name;
     // ...
 }

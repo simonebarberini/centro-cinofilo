@@ -5,3 +5,4 @@
 - [Integration-test DB cleanup](integration-test-cleanup.md) — ONE FK-safe wipe in AbstractPostgresIT @BeforeEach; non-transactional MockMvc ITs commit; ITs must run sequentially; FK delete order is fixed.
 - [Java 21 in Replit](java21-replit.md) — set JAVA_HOME to the openjdk-21 nix path before every mvn; default GraalVM 22.3 is Java 19 and rejects --release 21.
 - [Spring Boot map keys with slashes](spring-boot-map-slash-keys.md) — relaxed binding strips `/`,`.`,`-` from @ConfigurationProperties Map keys; use bracket notation `"[/auth/login]"` to keep HTTP paths verbatim.
+- [Unresolved Spring placeholder validation](spring-unresolved-placeholder-validation.md) — missing env var can bind as literal `${VAR}` string, passing @NotBlank but failing @Email/@Pattern with a misleading "invalid format" error.

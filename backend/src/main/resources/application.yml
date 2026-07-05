@@ -58,6 +58,18 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:28800000}
 
+# Platform admin bootstrap — creates the single ADMIN_APP user (and its technical
+# system tenant) needed to log into the Platform Backoffice, only if it doesn't exist yet.
+# Credentials are mandatory, no default: the application refuses to start without them
+# (same pattern as JWT_SECRET). Dev-only defaults live in application-dev.yml.
+platform-admin:
+  tenant:
+    name: ${PLATFORM_ADMIN_TENANT_NAME:Piattaforma}
+    slug: ${PLATFORM_ADMIN_TENANT_SLUG:platform}
+  username: ${PLATFORM_ADMIN_USERNAME}
+  email: ${PLATFORM_ADMIN_EMAIL}
+  password: ${PLATFORM_ADMIN_PASSWORD}
+
 logging:
   level:
     root: INFO

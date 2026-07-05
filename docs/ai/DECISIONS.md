@@ -714,3 +714,34 @@ Rimossi completamente: `npm test` / `ng test`, Karma, ChromeHeadless. Il job non
 - D'ora in avanti tutta la documentazione, i workflow CI e le nuove ADR usano esclusivamente `develop` per riferirsi al branch di integrazione; `dev` non compare più in nessun documento vivente del repository (resta, con nome invariato e concettualmente distinto dal branch Git, solo in contesti non-Git fuori scope di questa ADR: profilo Spring `dev`, `.env.dev`, cartella `infra/docker/dev/`, environment Postman `local-dev`).
 - Il rename del branch remoto su GitHub resta un'azione manuale dell'utente: i workflow aggiornati (`validate.yml`, `build-images.yml`) diventano operativi sul branch `develop` solo dopo che il rename è stato effettivamente eseguito su GitHub (finché il branch remoto si chiama ancora `dev`, i trigger su `develop` semplicemente non scattano).
 - Nessun impatto su Publish/GHCR/Deploy: restano fuori scope, da affrontare in una milestone successiva dedicata.
+
+---
+
+## ADR-025 — Publish Docker Images (CI-03): pubblicazione delle sole immagini di integrazione, separata dalla Release Management
+
+**Stato:** implementato (solo tag di integrazione: `develop`, `sha-<shortsha>`)
+
+**Problema:** `build-images.yml` (ADR-023) costruiva le immagini backend/frontend solo per verificarne la buildability (`push: false`), senza mai pubblicarle. Serviva una pubblicazione reale su GHCR, ma la milestone doveva decidere se estendere lo stesso workflow anche ai tag di release versionati (`vX.Y.Z`, `vX.Y.Z-rc.N`, `latest`) o limitarsi alle sole build di integrazione continua.
+
+**Decisione:**
+- Aggiunto un terzo job `publish` a `build-images.yml`, `needs: [backend, frontend]`: parte solo se entrambe le build di verifica sono passate.
+- Autenticazione a GHCR con `docker/login-action@v3` e `GITHUB_TOKEN` — nessun secret nuovo.
+- Permessi minimi dichiarati solo sul job `publish`: `contents: read`, `packages: write` (non a livello di workflow).
+- Tag calcolati con `docker/metadata-action@v5`, con regole esplicite (`type=raw,value=develop,enable=...`) invece dello shortcut generico `type=ref,event=branch`, che avrebbe prodotto anche un tag `main` indesiderato:
+  - `sha-<shortsha>`: sempre, sia da `develop` sia da `main`.
+  - `develop`: solo quando il push arriva da `refs/heads/develop`, mai da `main`.
+- Le immagini vengono ricostruite nel job `publish` riusando la cache Buildx `type=gha` con lo stesso scope (`backend`/`frontend`) scritta dai job di verifica (Opzione A: rebuild con cache, invece di riuso via artifact salvati) — build a costo quasi nullo grazie al cache hit, nessun artifact intermedio da gestire.
+- **Nessuna pubblicazione di `vX.Y.Z`, `vX.Y.Z-rc.N`, `latest` in questa milestone**: decisione architetturale esplicita, non un semplice rimando temporale. Questi tag restano responsabilità della futura pipeline "Release" (`CICD.md`, sezione 3), che si occuperà anche di GitHub Release, changelog ed eventuale deploy.
+
+**Motivazione:** separazione netta e duratura tra due responsabilità concettualmente diverse — Continuous Integration (verifica e pubblicazione continua delle build di sviluppo) e Release Management (produzione di artefatti ufficiali, changelog, rilascio). Fondere le due cose nello stesso file/trigger avrebbe accoppiato il ciclo di vita di ogni singolo push di sviluppo a quello, più pesante e cerimonioso, di una release vera (suite di test completa, note di rilascio, eventuale gate umano), costringendo a un refactoring del workflow non appena il progetto introdurrà release strutturate. Separare i due concetti fin da ora, anche se la pipeline "Release" non esiste ancora, evita questo debito tecnico futuro.
+
+**Alternative scartate:**
+- **Pubblicare anche `vX.Y.Z`/`latest` da `build-images.yml`, triggerato anche da tag Git:** valutata in fase di design, scartata dall'utente per il motivo di separazione architetturale sopra — è la decisione centrale di questa ADR.
+- **`type=ref,event=branch` di `docker/metadata-action` per il tag `develop`:** scartato perché avrebbe generato anche un tag `main` mutabile ad ogni push su quel branch, mai previsto dalla convenzione di `DOCKER_IMAGES.md`.
+- **Riuso via artifact (`docker save` / `actions/upload-artifact`) invece di rebuild con cache GHA:** scartata per questa milestone — aggiunge overhead di upload/download (~100-200 MB per immagine) per una garanzia di byte-identità non necessaria oggi, dato che i Dockerfile non hanno dipendenze volatili non pinnate.
+
+**Conseguenze:**
+- Ogni push su `develop` pubblica `ghcr.io/.../backend:develop` e `:sha-<shortsha>` (idem per `frontend`); ogni push su `main` pubblica solo `:sha-<shortsha>`.
+- Il package GHCR nasce privato: la connessione esplicita al repository e la scelta di visibilità restano un'azione manuale da completare su GitHub, non bloccante per questa milestone (impatta solo la futura autenticazione del deploy da VPS).
+- Nessun impatto su `vX.Y.Z`/`latest`/GitHub Release/deploy: restano interamente affidati alla futura pipeline "Release", il cui design in `CICD.md` (sezione 3) resta valido e non viene modificato da questa ADR.
+- `docs/deployment/CICD.md` e `docs/deployment/DOCKER_IMAGES.md` aggiornati per riflettere lo stato reale dell'implementazione.

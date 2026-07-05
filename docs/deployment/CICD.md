@@ -1,6 +1,6 @@
 # CI/CD Pipeline Design — Centro Cinofilo
 
-**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`develop` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). La pipeline **"Build Images"** (sezione 2) è **parzialmente implementata** in `.github/workflows/build-images.yml` (vedi ADR-023): costruisce le immagini Docker di backend e frontend ad ogni push su `develop` o `main`, senza però taggarle né pubblicarle su alcun registry (`push: false` — Job 5 e il tagging restano fuori scope, arriveranno con la pipeline di Publish/GHCR). Le pipeline **"Release"** e **"Manual Deploy"** (sezioni 3-4) restano solo design, non ancora implementate: richiedono push di immagini Docker su registry e deploy, esplicitamente fuori scope della milestone corrente.
+**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`develop` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). La pipeline **"Build Images"** (sezione 2) è **implementata** in `.github/workflows/build-images.yml` (vedi ADR-023 e ADR-025): costruisce le immagini Docker di backend e frontend ad ogni push su `develop` o `main` (job `backend`/`frontend`, verifica di buildability) e pubblica su GHCR **esclusivamente le immagini di integrazione** (job `publish`): `sha-<shortsha>` per ogni push su `develop`/`main`, `develop` solo per push su `develop`. La pubblicazione delle immagini versionate (`vX.Y.Z`, `vX.Y.Z-rc.N`, `latest`) resta **deliberatamente esclusa** da questa pipeline: è responsabilità della futura pipeline **"Release"** (sezione 3), per mantenere una separazione netta tra Continuous Integration e Release Management (vedi ADR-025). Le pipeline **"Release"** e **"Manual Deploy"** (sezioni 3-4) restano solo design, non ancora implementate.
 
 Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberini/centro-cinofilo`). GitHub Actions è la scelta naturale perché nativa alla piattaforma già in uso (nessun account/servizio terzo da collegare), con integrazione diretta al Container Registry di GitHub (GHCR) tramite `GITHUB_TOKEN` senza credenziali aggiuntive da gestire (vedi `DOCKER_IMAGES.md`). Alternative come GitLab CI, CircleCI o Jenkins richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo, senza un vantaggio concreto per questo progetto.
 
@@ -18,19 +18,19 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | **Esito** | Check di stato su PR/push; con branch protection attiva in futuro, blocca il merge se rosso |
 | **File** | `.github/workflows/validate.yml` |
 
-### 2. Workflow "Build Images" — **parzialmente implementato** come `build-images.yml`
+### 2. Workflow "Build Images" — **implementato** come `build-images.yml`
 
 | | |
 |---|---|
 | **Trigger** | `push` su `develop` o su `main` (tipicamente conseguenza del merge di una PR, o del merge `develop` → `main` in fase di release) |
-| **Job 1 — Backend: build + unit test** | Come sopra |
-| **Job 2 — Frontend: build + unit test** | Come sopra |
-| **Job 3 — Build immagine backend** | Solo se Job 1 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `develop` |
-| **Job 4 — Build immagine frontend** | Solo se Job 2 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `develop` |
-| **Job 5 — Push immagini su registry** | Dopo Job 3 e Job 4, push su GHCR |
-| **Ordine di esecuzione** | (Job 1 → Job 3) e (Job 2 → Job 4) in parallelo tra loro, poi Job 5 dopo entrambi |
-| **Dipendenze** | Job 3 dipende da Job 1, Job 4 dipende da Job 2, Job 5 dipende da Job 3 + Job 4 |
-| **Artifact prodotti** | Immagini Docker `backend:develop` / `:sha-<shortsha>`, `frontend:develop` / `:sha-<shortsha>` su GHCR (vedi convenzione completa in `DOCKER_IMAGES.md`) |
+| **Job `backend`** | Build Dockerfile backend, `push: false` (solo verifica di buildability, vedi ADR-023) |
+| **Job `frontend`** | Build Dockerfile frontend, `push: false` (solo verifica di buildability, vedi ADR-023) |
+| **Job `publish`** | Solo se `backend` e `frontend` passano. Login GHCR (`docker/login-action`, `GITHUB_TOKEN`), calcolo tag con `docker/metadata-action` e push reale (rebuild con cache `type=gha`, vedi ADR-025): `sha-<shortsha>` sempre, `develop` solo se il push è su `develop` (mai su push a `main`) |
+| **Ordine di esecuzione** | `backend` e `frontend` in parallelo, poi `publish` dopo entrambi |
+| **Dipendenze** | `publish` dipende da `backend` + `frontend` |
+| **Permessi** | `contents: read`, `packages: write` dichiarati solo sul job `publish` (principio del minimo privilegio) |
+| **Artifact prodotti** | Immagini Docker `backend:develop`/`:sha-<shortsha>`, `frontend:develop`/`:sha-<shortsha>` su GHCR (push su `main` produce solo `:sha-<shortsha>`, vedi convenzione completa in `DOCKER_IMAGES.md`) |
+| **Fuori scope (deliberatamente)** | `vX.Y.Z`, `vX.Y.Z-rc.N`, `latest` — restano responsabilità della pipeline "Release" (sezione 3), non di questa pipeline (vedi ADR-025) |
 
 ### 3. Workflow "Release"
 

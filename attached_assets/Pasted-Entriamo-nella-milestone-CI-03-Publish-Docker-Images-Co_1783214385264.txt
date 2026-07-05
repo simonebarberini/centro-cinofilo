@@ -1,0 +1,146 @@
+Entriamo nella milestone CI-03 – Publish Docker Images.
+
+Contesto
+
+Le milestone precedenti sono completate:
+
+Validate
+Build Images
+GitFlow definitivo (develop e main)
+Versioning documentato
+Docker Images documentate
+ADR aggiornate
+
+La pipeline Build Images costruisce già correttamente entrambe le immagini Docker.
+
+Non esiste ancora alcuna pubblicazione su registry.
+
+Obiettivo
+
+Progettare la pubblicazione automatica delle immagini su GitHub Container Registry (GHCR).
+
+Questa milestone non deve ancora fare deploy.
+
+Il deploy arriverà nelle milestone DEP.
+
+Metodo
+
+Come sempre:
+
+Analizza il repository.
+Analizza i workflow esistenti.
+Analizza la documentazione.
+Individua eventuali modifiche necessarie.
+Proponi un design completo.
+Fermati e attendi approvazione.
+
+Non implementare nulla.
+
+Il design deve descrivere
+Registry
+
+Come utilizzare GHCR.
+
+Repository immagini.
+
+Naming.
+
+Permessi.
+
+Autenticazione.
+
+Versionamento
+
+Definire con precisione i tag prodotti.
+
+Mi aspetto qualcosa di questo tipo:
+
+develop
+sha-<shortsha>
+vX.Y.Z
+latest (solo release stabili)
+
+Motivare ogni tag.
+
+Trigger
+
+Definire quando pubblicare.
+
+Valutare:
+
+push su develop
+push su main
+tag vX.Y.Z
+
+Motivare la scelta.
+
+Workflow
+
+Stabilire se:
+
+estendere build-images.yml
+
+oppure
+
+creare un workflow separato.
+
+Motivare la scelta.
+
+Sicurezza
+
+Analizzare:
+
+GITHUB_TOKEN
+packages: write
+permissions minime
+eventuali secret
+Rollback
+
+Descrivere come il deploy futuro potrà utilizzare i tag pubblicati per effettuare rollback.
+
+Documentazione
+
+Indicare:
+
+documenti da aggiornare;
+nuova ADR;
+eventuali diagrammi da modificare.
+Vincoli
+
+Non implementare ancora:
+
+deploy VPS;
+Docker Compose produzione;
+Caddy;
+HTTPS;
+backup;
+monitoring;
+release GitHub.
+
+Questa milestone riguarda esclusivamente la pubblicazione delle immagini Docker.
+
+Al termine
+
+Restituisci solamente:
+
+analisi;
+design completo;
+file da modificare;
+decisioni architetturali;
+punti che richiedono approvazione.
+
+Non implementare nulla.
+
+Una considerazione architetturale
+
+Ti anticipo una preferenza che vorrei mantenere (ma lascio a Replit il compito di valutarla): non creerei un nuovo workflow. Estenderei build-images.yml, aggiungendo un terzo job (publish) che dipende dai job backend e frontend.
+
+In questo modo avremmo una progressione naturale:
+
+Build Images
+
+├── backend
+├── frontend
+└── publish
+
+Il job publish partirebbe solo se le due build sono andate a buon fine. Mantiene la CI compatta e riflette bene la dipendenza logica tra costruzione e pubblicazione delle immagini. Se Replit propone un'alternativa diversa, dovrà motivarla chiaramente nel design.

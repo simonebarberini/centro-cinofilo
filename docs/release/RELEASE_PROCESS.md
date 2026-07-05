@@ -19,10 +19,10 @@ test
   │  (suite di integration test completa, con Docker/Testcontainers realmente disponibile — CI runner, non l'ambiente Replit)
   ▼
 release
-  │  (decisione: quali feature accumulate su develop formano la prossima release; PR develop → main)
+  │  (decisione: quali feature accumulate su develop formano la prossima release; bump manifest a versione finale su develop; PR develop → main)
   ▼
 tag
-  │  (vX.Y.Z su main, secondo VERSIONING.md)
+  │  (vX.Y.Z su main, secondo VERSIONING.md; subito dopo, bump manifest su develop a X.Y.Z-SNAPSHOT successivo, vedi ADR-027)
   ▼
 deploy
   │  (pull immagini vX.Y.Z sul server, docker compose up -d, healthcheck — vedi SERVER.md)
@@ -65,13 +65,17 @@ Eseguita in CI (dove Docker è realmente disponibile, a differenza del sandbox d
 
 ## 6. Release
 
-Decisione (umana, non automatica) su quali commit accumulati su `develop` compongono la prossima release. Si apre una PR `develop` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`). **Nella stessa PR**, si aggiorna la versione in `backend/pom.xml` e `frontend/package.json` al valore che si sta per rilasciare (vedi `VERSIONING.md`, versionamento a livello di repository) — questo allineamento è un prerequisito: il workflow "Release" (step 7) verifica automaticamente questa coerenza e **fallisce se dimenticato**, prima di costruire qualunque immagine.
+Decisione (umana, non automatica) su quali commit accumulati su `develop` compongono la prossima release. Immediatamente prima di aprire la PR, un commit dedicato su `develop` rimuove il suffisso `-SNAPSHOT` da `backend/pom.xml` e `frontend/package.json`, portandoli al valore esatto che si sta per rilasciare (vedi `VERSIONING.md`, sezione "Versione di sviluppo", e ADR-027) — questo allineamento è un prerequisito: il workflow "Release" (step 7) verifica automaticamente questa coerenza e **fallisce se dimenticato**, prima di costruire qualunque immagine. Si apre poi la PR `develop` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`), che porta anche questo commit.
 
-**Definizione di "fatto":** PR `develop` → `main` approvata, CI verde (rieseguita sul merge commit), versione nei manifest allineata alla release da taggare.
+**Definizione di "fatto":** PR `develop` → `main` approvata, CI verde (rieseguita sul merge commit), versione nei manifest allineata alla release da taggare (nessun suffisso `-SNAPSHOT` residuo).
 
 ## 7. Tag
 
 Al merge su `main`, si crea il tag `vX.Y.Z` (**senza suffisso** — le release candidate non sono gestite da questa pipeline, vedi ADR-026) secondo `VERSIONING.md`. Questo tag è l'evento che identifica in modo univoco "questa è la release X.Y.Z" ed è il trigger della pipeline "Release" implementata in `.github/workflows/release.yml` (vedi `CICD.md`): verifica che il tag discenda da `main`, che non esista già una release con lo stesso nome e che la versione nei manifest sia coerente; poi build delle immagini definitive taggate `vX.Y.Z` + `latest` e creazione della GitHub Release con note generate automaticamente. **Non esegue la suite di integration test** — la pipeline assume che il codice sia già stato validato dalle pipeline CI (Validate, Build Images, Publish Images); l'esecuzione automatica della suite completa in questo punto del processo è deferita a una futura milestone dedicata alla qualità della release.
+
+**Bump immediato alla versione di sviluppo successiva (vedi ADR-027):** subito dopo il tag (non è necessario attendere l'esito della pipeline "Release"), un nuovo commit **su `develop`** imposta `backend/pom.xml` e `frontend/package.json` alla prossima milestone pianificata in `VERSIONING.md` con suffisso `-SNAPSHOT` (es. dopo `v0.4.0` → `0.5.0-SNAPSHOT`). Questo passo è **manuale** in questa milestone: nessuna pipeline lo esegue automaticamente — l'automazione è deferita a una futura milestone dedicata (vedi ADR-027).
+
+**Definizione di "fatto":** tag pushato, pipeline "Release" verde, GitHub Release pubblicata, `develop` aggiornato al prossimo `-SNAPSHOT`.
 
 ## 8. Deploy
 

@@ -65,13 +65,13 @@ Eseguita in CI (dove Docker è realmente disponibile, a differenza del sandbox d
 
 ## 6. Release
 
-Decisione (umana, non automatica) su quali commit accumulati su `develop` compongono la prossima release. Si apre una PR `develop` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`).
+Decisione (umana, non automatica) su quali commit accumulati su `develop` compongono la prossima release. Si apre una PR `develop` → `main` (o si passa da un branch `release/*` se si è scelto di stabilizzare, vedi `GITFLOW.md`). **Nella stessa PR**, si aggiorna la versione in `backend/pom.xml` e `frontend/package.json` al valore che si sta per rilasciare (vedi `VERSIONING.md`, versionamento a livello di repository) — questo allineamento è un prerequisito: il workflow "Release" (step 7) verifica automaticamente questa coerenza e **fallisce se dimenticato**, prima di costruire qualunque immagine.
 
-**Definizione di "fatto":** PR `develop` → `main` approvata, CI verde (rieseguita sul merge commit).
+**Definizione di "fatto":** PR `develop` → `main` approvata, CI verde (rieseguita sul merge commit), versione nei manifest allineata alla release da taggare.
 
 ## 7. Tag
 
-Al merge su `main`, si crea il tag `vX.Y.Z` secondo `VERSIONING.md`. Questo tag è l'evento che identifica in modo univoco "questa è la release X.Y.Z" ed è il trigger della pipeline "Release" (vedi `CICD.md`): build delle immagini definitive taggate `vX.Y.Z` + `latest`, generazione release notes.
+Al merge su `main`, si crea il tag `vX.Y.Z` (**senza suffisso** — le release candidate non sono gestite da questa pipeline, vedi ADR-026) secondo `VERSIONING.md`. Questo tag è l'evento che identifica in modo univoco "questa è la release X.Y.Z" ed è il trigger della pipeline "Release" implementata in `.github/workflows/release.yml` (vedi `CICD.md`): verifica che il tag discenda da `main`, che non esista già una release con lo stesso nome e che la versione nei manifest sia coerente; poi build delle immagini definitive taggate `vX.Y.Z` + `latest` e creazione della GitHub Release con note generate automaticamente. **Non esegue la suite di integration test** — la pipeline assume che il codice sia già stato validato dalle pipeline CI (Validate, Build Images, Publish Images); l'esecuzione automatica della suite completa in questo punto del processo è deferita a una futura milestone dedicata alla qualità della release.
 
 ## 8. Deploy
 

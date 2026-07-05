@@ -1,6 +1,6 @@
 # CI/CD Pipeline Design — Centro Cinofilo
 
-**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`develop` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). La pipeline **"Build Images"** (sezione 2) è **implementata** in `.github/workflows/build-images.yml` (vedi ADR-023 e ADR-025): costruisce le immagini Docker di backend e frontend ad ogni push su `develop` o `main` (job `backend`/`frontend`, verifica di buildability) e pubblica su GHCR **esclusivamente le immagini di integrazione** (job `publish`): `sha-<shortsha>` per ogni push su `develop`/`main`, `develop` solo per push su `develop`. La pubblicazione delle immagini versionate (`vX.Y.Z`, `vX.Y.Z-rc.N`, `latest`) resta **deliberatamente esclusa** da questa pipeline: è responsabilità della futura pipeline **"Release"** (sezione 3), per mantenere una separazione netta tra Continuous Integration e Release Management (vedi ADR-025). Le pipeline **"Release"** e **"Manual Deploy"** (sezioni 3-4) restano solo design, non ancora implementate.
+**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`develop` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). La pipeline **"Build Images"** (sezione 2) è **implementata** in `.github/workflows/build-images.yml` (vedi ADR-023 e ADR-025): costruisce le immagini Docker di backend e frontend ad ogni push su `develop` o `main` (job `backend`/`frontend`, verifica di buildability) e pubblica su GHCR **esclusivamente le immagini di integrazione** (job `publish`): `sha-<shortsha>` per ogni push su `develop`/`main`, `develop` solo per push su `develop`. La pipeline **"Release"** (sezione 3) è **implementata** in `.github/workflows/release.yml` (vedi ADR-026): pubblica `vX.Y.Z` + `latest` al push di un tag di release stabile, senza rieseguire la suite di integration test (deferita a una futura milestone "qualità della release") e senza supporto alle release candidate (fuori scope, vedi ADR-026). La pipeline **"Manual Deploy"** (sezione 4) resta solo design, non ancora implementata.
 
 Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberini/centro-cinofilo`). GitHub Actions è la scelta naturale perché nativa alla piattaforma già in uso (nessun account/servizio terzo da collegare), con integrazione diretta al Container Registry di GitHub (GHCR) tramite `GITHUB_TOKEN` senza credenziali aggiuntive da gestire (vedi `DOCKER_IMAGES.md`). Alternative come GitLab CI, CircleCI o Jenkins richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo, senza un vantaggio concreto per questo progetto.
 
@@ -32,18 +32,19 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | **Artifact prodotti** | Immagini Docker `backend:develop`/`:sha-<shortsha>`, `frontend:develop`/`:sha-<shortsha>` su GHCR (push su `main` produce solo `:sha-<shortsha>`, vedi convenzione completa in `DOCKER_IMAGES.md`) |
 | **Fuori scope (deliberatamente)** | `vX.Y.Z`, `vX.Y.Z-rc.N`, `latest` — restano responsabilità della pipeline "Release" (sezione 3), non di questa pipeline (vedi ADR-025) |
 
-### 3. Workflow "Release"
+### 3. Workflow "Release" — **implementato** come `release.yml`
 
 | | |
 |---|---|
-| **Trigger** | `push` di un tag `v*.*.*` o `v*.*.*-rc.*` (le RC si taggano direttamente su `develop`, le release stabili al merge `develop` → `main` — non esiste più un branch `release/*`, vedi `GITFLOW.md`) |
-| **Job 1 — Suite completa** | `mvn verify` (Surefire + Failsafe, quindi anche i 101 Integration Test con Testcontainers — richiede un runner con Docker disponibile, es. i runner standard `ubuntu-latest` di GitHub Actions, che supportano Docker-in-Docker nativamente, a differenza del sandbox Replit) |
-| **Job 2 — Build immagini versionate** | Solo se Job 1 passa. Tag `vX.Y.Z` + `latest` per entrambe le immagini |
-| **Job 3 — Push su registry** | Dopo Job 2 |
-| **Job 4 — GitHub Release** | Dopo Job 3. Genera le release notes (da Conventional Commits, vedi `VERSIONING.md`) e crea la GitHub Release associata al tag |
-| **Ordine di esecuzione** | Sequenziale: 1 → 2 → 3 → 4 (ogni job blocca il successivo: non si pubblica un'immagine se i test falliscono) |
+| **Trigger** | `push` di un tag `v[0-9]+.[0-9]+.[0-9]+` (**solo release stabili**, sempre su `main` — le release candidate `vX.Y.Z-rc.N` sono **fuori scope** in questa milestone, vedi ADR-026) |
+| **Job `verify-tag`** | Nessun rebuild: solo verifiche. `git fetch --tags`, verifica che il commit taggato sia un antenato di `main` (`git merge-base --is-ancestor`), verifica che **non esista già** una GitHub Release per questo tag (immutabilità, messaggio d'errore esplicito se già pubblicata), verifica di coerenza tra il tag e la versione dichiarata in `backend/pom.xml` e `frontend/package.json` (fail-fast, nessun auto-bump — vedi `VERSIONING.md`) |
+| **Job `build-and-publish`** | Solo se `verify-tag` passa. Login GHCR, poi l'action composita `publish-image` (`.github/actions/publish-image`, condivisa con `build-images.yml`) per backend e frontend, con tag `vX.Y.Z` + `latest` |
+| **Job `github-release`** | Dopo `build-and-publish`. `gh release create --generate-notes` (CLI nativa, nessuna dipendenza di terze parti): nome release = tag, note generate automaticamente da PR/commit |
+| **Ordine di esecuzione** | Sequenziale: `verify-tag` → `build-and-publish` → `github-release` (ogni job blocca il successivo) |
 | **Dipendenze** | Ognuno dal precedente |
-| **Artifact prodotti** | Immagini Docker `vX.Y.Z` + `latest` su GHCR, GitHub Release con changelog |
+| **Permessi** | Minimi per job: `verify-tag` (`contents: read`), `build-and-publish` (`contents: read`, `packages: write`), `github-release` (`contents: write`) |
+| **Artifact prodotti** | Immagini Docker `vX.Y.Z` + `latest` su GHCR, GitHub Release con note automatiche. Nessun `CHANGELOG.md`, nessun artifact allegato (vedi ADR-026) |
+| **Fuori scope (deliberatamente)** | Gate `mvn verify`/Testcontainers (deferito a una futura milestone "qualità della release"), release candidate `-rc.N`, deploy VPS (vedi `RELEASE_PROCESS.md`) |
 
 ### 4. Workflow "Manual Deploy"
 
@@ -65,3 +66,5 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 - **Un unico workflow monolitico per tutto (PR + push + release + deploy in un solo file):** scartato perché mischia trigger e responsabilità diverse, rendendo il file difficile da mantenere e i log difficili da leggere ("perché la pipeline di una PR ha provato a fare il deploy?").
 - **Deploy automatico su ogni push a `main`:** scartato per il motivo di controllo umano già spiegato.
 - **CD tramite polling da parte del server (es. Watchtower che aggiorna automaticamente ai nuovi tag):** scartato perché toglie tracciabilità esplicita di *chi* e *quando* ha deployato una versione, e rende più complesso il rollback controllato.
+- **Gate `mvn verify` obbligatorio nella pipeline "Release":** valutato in fase di design, deferito dall'utente a una futura milestone dedicata alla qualità della release — la pipeline assume che il codice sia già stato validato dalle pipeline CI (Validate, Build Images, Publish Images), vedi ADR-026.
+- **Supporto alle release candidate (`vX.Y.Z-rc.N`) in questa milestone:** deferito — introdotto solo quando emergerà un'esigenza concreta, vedi ADR-026.

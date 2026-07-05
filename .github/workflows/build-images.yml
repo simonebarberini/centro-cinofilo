@@ -68,42 +68,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Metadata (backend)
-        id: meta-backend
-        uses: docker/metadata-action@v5
+      - name: Publish backend image
+        uses: ./.github/actions/publish-image
         with:
-          images: ghcr.io/${{ github.repository }}/backend
-          tags: |
-            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Build and push (backend)
-        uses: docker/build-push-action@v5
-        with:
+          image: ghcr.io/${{ github.repository }}/backend
           context: backend
-          file: backend/Dockerfile
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-
-      - name: Metadata (frontend)
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/frontend
+          dockerfile: backend/Dockerfile
+          cache-scope: backend
           tags: |
             type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
             type=sha,format=short,prefix=sha-
 
-      - name: Build and push (frontend)
-        uses: docker/build-push-action@v5
+      - name: Publish frontend image
+        uses: ./.github/actions/publish-image
         with:
+          image: ghcr.io/${{ github.repository }}/frontend
           context: frontend
-          file: frontend/Dockerfile
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          dockerfile: frontend/Dockerfile
+          cache-scope: frontend
+          tags: |
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=sha,format=short,prefix=sha-

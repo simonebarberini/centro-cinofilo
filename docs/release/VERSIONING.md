@@ -6,7 +6,9 @@
 - `backend/pom.xml` → `<version>1.0.0</version>`.
 - `frontend/package.json` → `"version": "1.0.0"`.
 
-**Incoerenza da correggere in una futura milestone di implementazione** (non in questa, che è solo di analisi): i numeri di versione nei manifest (`pom.xml`, `package.json`) non corrispondono ai tag Git più recenti. Con la strategia descritta sotto, la versione nei manifest deve sempre coincidere con l'ultimo tag di release stabile.
+**Incoerenza da correggere:** i numeri di versione nei manifest (`pom.xml`, `package.json`) non corrispondono ancora ai tag Git più recenti — correzione manuale da fare prima del prossimo tag di release, non eseguita da questa milestone (che ha introdotto solo il controllo automatico, non la correzione dei valori attuali). Con la strategia descritta sotto, la versione nei manifest deve sempre coincidere con l'ultimo tag di release stabile.
+
+**Verifica automatica (implementata, vedi ADR-026):** il workflow `release.yml` (job `verify-tag`) verifica, ad ogni push di un tag `vX.Y.Z`, che `project.version` in `backend/pom.xml` e `version` in `frontend/package.json` corrispondano esattamente al tag (senza il prefisso `v`) — se non corrispondono, la pipeline fallisce **prima** di costruire o pubblicare qualunque immagine, con un messaggio che indica quale manifest va corretto. È un controllo di sola verifica (fail-fast), non un bump automatico: l'aggiornamento dei manifest resta un passo manuale nel processo di release (vedi `RELEASE_PROCESS.md`, step "Release").
 
 ## Strategia: Semantic Versioning (SemVer)
 

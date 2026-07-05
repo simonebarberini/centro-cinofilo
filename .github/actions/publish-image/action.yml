@@ -1,0 +1,50 @@
+name: Publish Docker image to GHCR
+description: >
+  Calcola i tag Docker (docker/metadata-action) e costruisce/pubblica l'immagine
+  su GHCR (docker/build-push-action), riusando la cache Buildx di tipo "gha".
+  Presuppone che il chiamante abbia già eseguito checkout, docker/setup-buildx-action
+  e il login al registry (docker/login-action) — vedi ADR-025, ADR-026.
+
+inputs:
+  image:
+    description: Riferimento completo dell'immagine (es. ghcr.io/OWNER/REPO/backend)
+    required: true
+  context:
+    description: Build context Docker
+    required: true
+  dockerfile:
+    description: Percorso del Dockerfile
+    required: true
+  tags:
+    description: Blocco di regole tag per docker/metadata-action (una per riga)
+    required: true
+  cache-scope:
+    description: Scope della cache Buildx type=gha (es. backend, frontend)
+    required: true
+
+outputs:
+  digest:
+    description: Digest dell'immagine pubblicata
+    value: ${{ steps.build.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Docker metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.image }}
+        tags: ${{ inputs.tags }}
+
+    - name: Build and push
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=${{ inputs.cache-scope }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.cache-scope }}

@@ -212,13 +212,12 @@ networks:          # reti Docker custom
 
 ## 5. I compose file del progetto
 
-Il progetto ha tre ambienti, ognuno con i suoi compose file:
+Il progetto ha due ambienti, ognuno con il proprio compose file:
 
 ```
 infra/docker/
-├── dev/            → Solo DB. BE e FE girano in locale (npm start, mvn spring-boot:run)
-├── prod/           → DB + BE + FE containerizzati. Tre file separati per flessibilità
-└── local-prod/     → Stack completo in un file solo + MailHog per test email
+├── dev/    → Solo DB. BE e FE girano in locale (npm start, mvn spring-boot:run)
+└── prod/   → DB + BE + FE containerizzati in un unico docker-compose.yml
 ```
 
 ### 5.1 Dev – `infra/docker/dev/docker-compose.yml`
@@ -233,30 +232,19 @@ HOST
     └── postgres → :5432
 ```
 
-### 5.2 Prod – `infra/docker/prod/*.yml`
+### 5.2 Prod – `infra/docker/prod/docker-compose.yml`
 
-Tre file separati che si possono comporre:
-
-- `db.yml` → PostgreSQL con volume persistente
-- `backend.yml` → Spring Boot (dipende da `db`)
-- `frontend.yml` → Angular + Nginx (dipende da `backend`)
-
-La separazione permette di riavviare o aggiornare un solo componente senza toccare gli altri.
-
-### 5.3 Local-prod – `infra/docker/local-prod/docker-compose.yml`
-
-Stack completo in un file unico, pensato per simulare la produzione in locale:
+Un unico file con i tre servizi (`postgres`, `backend`, `frontend`) sulla stessa rete interna:
 
 ```
 HOST
 └── Docker (rete interna: app-net)
-    ├── postgres    → porta 5433 (esterna, per DBeaver)
-    ├── mailhog     → porta 8025 (Web UI email), 1025 (SMTP interno)
-    ├── backend     → nessuna porta esterna (raggiungibile solo da frontend)
-    └── frontend    → porta 80 (esterna) → nginx → /api/* → backend:8080
+    ├── postgres    → nessuna porta esterna (raggiungibile solo dal backend)
+    ├── backend     → nessuna porta esterna (raggiungibile solo dal frontend)
+    └── frontend    → porta 80 (esterna, configurabile via FRONTEND_PORT) → nginx → /api/* → backend:8080
 ```
 
-MailHog intercetta tutte le email inviate dal backend senza recapitarle davvero. Puoi aprire `http://localhost:8025` e leggere le email come se fossi il destinatario.
+Un unico file semplifica avvio, log e stop rispetto a comporre più `-f`, restando comunque possibile agire su un solo servizio (es. `up -d --build backend`).
 
 ---
 
@@ -330,12 +318,15 @@ Senza questo, il backend potrebbe partire prima che PostgreSQL sia pronto e anda
 
 ## 9. Variabili d'ambiente e file `.env`
 
-Le variabili sensibili (password, chiavi JWT, configurazioni d'ambiente) non vengono scritte direttamente nel compose file ma in un file `.env` separato che non viene committato su Git.
+Le variabili sensibili (password, chiavi JWT, configurazioni d'ambiente) non vengono scritte direttamente nel compose file ma in un file `.env` separato.
+
+- **`.env`** (produzione) — mai committato (in `.gitignore`), contiene i segreti reali. Si crea copiando `.env.example`.
+- **`.env.dev`** (sviluppo) — committato in git: contiene solo valori non sensibili, pronti all'uso.
 
 ```bash
-# .env.local-prod
+# .env
 POSTGRES_PASSWORD=mia-password-sicura
-JWT_SECRET=chiave-super-segreta-256-bit
+JWT_SECRET=chiave-super-segreta-512-bit
 ```
 
 ```yaml
@@ -346,7 +337,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # letto dal file .env
 ```
 
-Il file `*.example` nel repo mostra la struttura senza valori reali — serve come template da copiare.
+Il file `.env.example` nel repo mostra la struttura senza valori reali — serve come template da copiare in `.env`.
 
 ---
 
@@ -354,29 +345,29 @@ Il file `*.example` nel repo mostra la struttura senza valori reali — serve co
 
 ```bash
 # Avvia tutti i servizi (con build se necessario)
-docker compose --env-file .env.local-prod -f infra/docker/local-prod/docker-compose.yml up -d --build
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml up -d --build
 
 # Vedi lo stato dei container
-docker compose -f infra/docker/local-prod/docker-compose.yml ps
+docker compose -f infra/docker/prod/docker-compose.yml ps
 
 # Segui i log in tempo reale
-docker compose -f infra/docker/local-prod/docker-compose.yml logs -f
+docker compose -f infra/docker/prod/docker-compose.yml logs -f
 
 # Log di un singolo servizio
-docker compose -f infra/docker/local-prod/docker-compose.yml logs -f backend
+docker compose -f infra/docker/prod/docker-compose.yml logs -f backend
 
 # Ferma tutto (i dati rimangono nel volume)
-docker compose -f infra/docker/local-prod/docker-compose.yml down
+docker compose -f infra/docker/prod/docker-compose.yml down
 
 # Ferma tutto e cancella i volumi (reset DB)
-docker compose -f infra/docker/local-prod/docker-compose.yml down -v
+docker compose -f infra/docker/prod/docker-compose.yml down -v
 
 # Ricostruisce solo il backend senza toccare DB e frontend
-docker compose --env-file .env.local-prod -f infra/docker/local-prod/docker-compose.yml up -d --build backend
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml up -d --build backend
 
 # Apri una shell dentro un container in esecuzione
-docker exec -it cinofilo-local-backend sh
+docker exec -it cinofilo-backend sh
 
 # Connessione diretta al DB dal terminale
-docker exec -it cinofilo-local-db psql -U cinofilo -d cinofilo
+docker exec -it cinofilo-db psql -U cinofilo -d cinofilo
 ```

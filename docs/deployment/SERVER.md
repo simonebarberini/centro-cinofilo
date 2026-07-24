@@ -32,7 +32,7 @@ postgres (rete Docker interna, nessuna porta esposta sull'host in produzione)
 
 ```
 /opt/centro-cinofilo/
-├── docker-compose.yml          # (o i tre file prod/db.yml, backend.yml, frontend.yml, invariati)
+├── docker-compose.yml          # copia di infra/docker/prod/docker-compose.yml, invariato
 ├── Caddyfile                   # configurazione del reverse proxy edge
 ├── .env                        # variabili d'ambiente reali, MAI in Git
 ├── backups/
@@ -48,11 +48,11 @@ postgres (rete Docker interna, nessuna porta esposta sull'host in produzione)
     └── postgres/                # volume dati Postgres persistente
 ```
 
-Questa struttura riusa i tre file Compose di produzione già esistenti in `infra/docker/prod/` (nessuna modifica proposta alla loro struttura), aggiungendo solo ciò che serve per operare il server (script, backup, Caddy).
+Questa struttura riusa il compose di produzione già esistente in `infra/docker/prod/docker-compose.yml` (nessuna modifica proposta alla sua struttura), aggiungendo solo ciò che serve per operare il server (script, backup, Caddy).
 
 ## Gestione delle variabili d'ambiente
 
-Il progetto ha già la convenzione corretta: file `.env` non versionato, con `*.example` come template (`.env.prod.example` già esistente e completo). Sul server:
+Il progetto ha già la convenzione corretta: file `.env` non versionato, con `.env.example` come template (già esistente e completo). Sul server:
 
 - Il file `.env` reale vive solo su `/opt/centro-cinofilo/.env`, con permessi ristretti (`chmod 600`, proprietario l'utente di deploy).
 - Non viene mai copiato via Git; viene creato/aggiornato manualmente al primo setup del server, e aggiornato solo quando cambia un segreto (non ad ogni deploy).

@@ -156,12 +156,7 @@ In locale si avviano **tre processi** separati: il database e Mailhog via Docker
 
 ### 1. Configurare le variabili d'ambiente
 
-```bash
-# Dalla root del progetto
-cp .env.dev.example .env.dev
-```
-
-Il file `.env.dev` contiene già valori funzionanti per lo sviluppo — non è necessario modificarlo salvo esigenze particolari.
+Il file `.env.dev` (nella root del progetto, già tracciato in git) contiene già valori funzionanti per lo sviluppo — non è necessario modificarlo salvo esigenze particolari.
 
 ---
 
@@ -300,60 +295,6 @@ docker stop mailhog && docker rm mailhog
 # Pulire build Maven
 cd backend && mvn clean
 ```
-
-## Avvio in locale (produzione simulata)
-
-Vuoi testare l'app esattamente come si comporta in produzione, senza avviare nulla manualmente? Un solo comando avvia **DB + Backend + Frontend + MailHog** tutti containerizzati.
-
-> Per capire come funzionano i Dockerfile e il compose, leggi [docs/docker-guide.md](docs/docker-guide.md).
-
-### 1. Setup iniziale (una volta sola)
-
-```bash
-cp .env.local-prod.example .env.local-prod
-# Il file contiene già valori funzionanti — nessuna modifica necessaria per iniziare
-```
-
-### 2. Avvia tutto
-
-```bash
-docker compose \
-  --env-file .env.local-prod \
-  -f infra/docker/local-prod/docker-compose.yml \
-  up -d --build
-```
-
-Il primo avvio richiede qualche minuto perché Docker compila il backend (Maven) e il frontend (Angular). Le volte successive senza `--build` parte in pochi secondi.
-
-### 3. Servizi disponibili
-
-| Servizio | URL | Note |
-|----------|-----|------|
-| **App** | http://localhost | Frontend Angular |
-| **MailHog** | http://localhost:8025 | Leggi le email inviate dal backend |
-| **PostgreSQL** | `localhost:5433` | Connetti con DBeaver (user/pass: `cinofilo`) |
-
-> La porta del DB è **5433** (non 5432) per evitare conflitti con un eventuale postgres locale.
-
-### 4. Comandi utili
-
-```bash
-# Vedi i log in tempo reale
-docker compose -f infra/docker/local-prod/docker-compose.yml logs -f
-
-# Ricompila solo il backend dopo una modifica al codice
-docker compose --env-file .env.local-prod \
-  -f infra/docker/local-prod/docker-compose.yml \
-  up -d --build backend
-
-# Ferma tutto (i dati del DB rimangono)
-docker compose -f infra/docker/local-prod/docker-compose.yml down
-
-# Ferma tutto e cancella il DB (reset completo)
-docker compose -f infra/docker/local-prod/docker-compose.yml down -v
-```
-
----
 
 ## Convenzioni di Sviluppo
 
@@ -669,25 +610,15 @@ Stack di produzione: **PostgreSQL + Spring Boot + Angular/Nginx** orchestrati co
 
 ```bash
 # 1. Crea il file di environment (una sola volta)
-cp .env.prod.example .env.prod
-#    ✏️  modifica .env.prod: imposta POSTGRES_PASSWORD, JWT_SECRET, APP_BASE_URL
-#    ✏️  aggiungi MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD per le email
+cp .env.example .env
+#    ✏️  modifica .env: imposta POSTGRES_PASSWORD, JWT_SECRET, PLATFORM_ADMIN_*,
+#        MAIL_HOST/PORT/USERNAME/PASSWORD/FROM, APP_BASE_URL, CORS_ALLOWED_ORIGINS
 
-# 2. Build & avvio di tutti e tre i container
-docker compose \
-  --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  -f infra/docker/prod/frontend.yml \
-  up -d --build
+# 2. Build & avvio di DB + Backend + Frontend
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml up -d --build
 
 # 3. Verifica
-docker compose \
-  --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  -f infra/docker/prod/frontend.yml \
-  ps
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml ps
 ```
 
 ### Configurazione email (produzione)
@@ -703,7 +634,7 @@ Il backend usa SMTP per inviare email di verifica e reset password. La soluzione
 - Sempre in Sicurezza → cerca "App password" → seleziona "Posta" → Genera
 - Copia i 16 caratteri generati (es. `abcd efgh ijkl mnop`)
 
-**4. Aggiungere le variabili in `.env.prod`**
+**4. Aggiungere le variabili in `.env`**
 ```env
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
@@ -728,48 +659,30 @@ MAIL_FROM=noreply.miocentro@gmail.com
 
 ```bash
 # Tutti i servizi
-docker compose \
-  --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  -f infra/docker/prod/frontend.yml \
-  logs -f
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml logs -f
 
 # Solo backend
-docker compose --env-file .env.prod -f infra/docker/prod/backend.yml logs -f backend
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml logs -f backend
 ```
 
 ### Avviare/fermare un singolo servizio
 
 ```bash
 # Solo database (es. per manutenzione)
-docker compose --env-file .env.prod -f infra/docker/prod/db.yml up -d
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml up -d postgres
 
 # Riavviare solo il backend dopo un deploy
-docker compose --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  up -d --build backend
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml up -d --build backend
 ```
 
 ### Stop & pulizia
 
 ```bash
 # Stop (preserva volumi)
-docker compose \
-  --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  -f infra/docker/prod/frontend.yml \
-  down
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml down
 
 # Stop + cancella volumi (⚠️  dati persi)
-docker compose \
-  --env-file .env.prod \
-  -f infra/docker/prod/db.yml \
-  -f infra/docker/prod/backend.yml \
-  -f infra/docker/prod/frontend.yml \
-  down -v
+docker compose --env-file .env -f infra/docker/prod/docker-compose.yml down -v
 ```
 
 ---

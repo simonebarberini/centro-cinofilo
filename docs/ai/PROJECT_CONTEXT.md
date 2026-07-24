@@ -74,9 +74,8 @@ centro-cinofilo/
 │   ├── layout/         # MainLayoutComponent
 │   └── pages/          # Login, Register, Bookings, Calendar, Customers, Dogs
 ├── infra/docker/
-│   ├── dev/            # Solo DB + MailHog
-│   ├── local-prod/     # Tutto containerizzato (BE + FE + DB + MailHog)
-│   └── prod/           # db.yml + backend.yml + frontend.yml separati
+│   ├── dev/            # Solo DB (BE/FE girano in locale)
+│   └── prod/           # docker-compose.yml unico (DB + BE + FE)
 ├── docs/               # Documentazione tecnica
 ├── postman/            # Collection e environment Postman
 └── attached_assets/    # Note e analisi architetturali

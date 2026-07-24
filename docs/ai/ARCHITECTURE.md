@@ -195,8 +195,7 @@ Un servizio per dominio (es: `BookingsApiService`, `TenantApiService`). Incapsul
 
 | Ambiente | Configurazione |
 |----------|---------------|
-| Dev | DB + MailHog in Docker; BE e FE avviati direttamente (Maven + npm) |
-| Local-prod | Tutti i 4 servizi containerizzati (DB + BE + FE + MailHog) |
-| Prod | 3 Compose file separati: `db.yml`, `backend.yml`, `frontend.yml`; BE con Dockerfile multi-stage; FE servito da Nginx |
+| Dev | DB in Docker (`.env.dev`); BE e FE avviati direttamente (Maven + npm); Mailhog locale |
+| Prod | Unico `docker-compose.yml` (DB + BE + FE), variabili da `.env`; BE con Dockerfile multi-stage; FE servito da Nginx |
 
 Frontend dev proxy: `proxy.conf.json` instrada `/api/*` → `http://localhost:8080`.

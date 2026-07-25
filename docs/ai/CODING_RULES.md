@@ -182,7 +182,7 @@ DEVE passare per TenantCapacityGuard.
 - **Formato commit:** Conventional Commits `<type>(<scope>): <subject>`
   - Tipi: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`
   - Scope comuni: `backend`, `frontend`, `infra`, `docs`
-- **Branching:** feature branch da `dev` → PR verso `dev` → PR verso `main` per release
+- **Branching:** feature branch da `develop` → PR verso `develop` → PR verso `main` per release
 - `main` = produzione stabile — nessun push diretto
 
 ---

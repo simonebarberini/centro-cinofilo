@@ -653,3 +653,64 @@ Rimossi completamente: `npm test` / `ng test`, Karma, ChromeHeadless. Il job non
 - Il job frontend in `validate.yml` non fallisce più per `TS18003`, ma copre solo la compilazione, non la logica applicativa.
 - `docs/deployment/CICD.md` aggiornato per riflettere che il Job 2 (Frontend) della pipeline "Pull Request" esegue solo build.
 - Resta un debito tecnico esplicito e tracciato: introdurre una prima suite di unit test Angular è un prerequisito per ripristinare la copertura di test in questa pipeline (da riprendere in una milestone futura dedicata al frontend, non decisa qui).
+
+---
+
+## ADR-023 — Implementazione della pipeline "Build Images" (`build-images.yml`), senza push su registry
+
+**Stato:** implementato (parzialmente — solo build, non push).
+
+**Contesto.** ADR-020 aveva disegnato la pipeline "Push su dev" (sezione 2 di `CICD.md`): build immagini Docker di backend e frontend, tag `sha-<shortsha>` + `develop`, push su GHCR. Questa milestone (CI-02) implementa solo la parte di build, verificando che i Dockerfile esistenti producano immagini funzionanti in CI, senza ancora introdurre autenticazione/push su alcun registry container — esplicitamente rimandato a una milestone successiva (Publish/GHCR).
+
+**Decisione.** Creato `.github/workflows/build-images.yml`:
+- Due job paralleli e indipendenti, `backend` e `frontend`, ciascuno con `docker/setup-buildx-action@v3` + `docker/build-push-action@v5`.
+- `push: false` esplicito su entrambi i job: le immagini vengono costruite e scartate a fine job, non pubblicate da nessuna parte.
+- Nessun tag applicato (nessun `docker/metadata-action`, nessuna logica di short-SHA/`:develop`): il tagging ha senso solo insieme al push su registry, quindi viene rimandato alla stessa milestone che introdurrà quest'ultimo (YAGNI).
+- Cache `type=gha` con scope separato per job, per accelerare build ripetute senza introdurre un registry di cache esterno.
+- Trigger, al momento dell'implementazione: `push` sul branch `dev` (nome del branch di integrazione in vigore in quel momento; aggiornato a `develop`/`main` dalla successiva ADR-024).
+
+**Motivazione.** Verificare in CI che le immagini Docker si costruiscano correttamente è un passo intermedio a basso rischio (nessuna credenziale, nessun side-effect esterno) prima di introdurre l'autenticazione al registry e il push reale. Separare "far compilare l'immagine" da "pubblicarla" permette di individuare problemi di Dockerfile/build il prima possibile, senza anticipare la complessità (secrets, permessi GHCR, strategia di tag) della pipeline di pubblicazione.
+
+**Alternative scartate.**
+- **Implementare da subito anche tag e push su GHCR:** scartato per questa milestone — allargherebbe lo scope a gestione di credenziali/permessi del registry, esplicitamente lasciata a una milestone dedicata.
+- **Un solo job che builda entrambe le immagini in sequenza:** scartato — backend e frontend sono indipendenti, farli in parallelo riduce il tempo totale della pipeline senza introdurre alcuna dipendenza reale tra i due.
+
+**Conseguenze.**
+- Ogni push sul branch di integrazione ora verifica anche che entrambe le immagini Docker si costruiscano senza errori, non solo che il codice compili e passi gli unit test (già coperto da `validate.yml`).
+- Nessuna immagine viene ancora pubblicata: un eventuale ambiente che consumasse immagini `:develop` da un registry non troverebbe nulla — normale, dato che il push è esplicitamente fuori scope di questa milestone.
+- `docs/deployment/CICD.md` aggiornato per riflettere lo stato reale (sezione 2 "parzialmente implementata").
+
+---
+
+## ADR-024 — Rinominazione definitiva del branch di integrazione da `dev` a `develop`
+
+**Stato:** implementato (lato workflow/documentazione; il rename effettivo del branch su GitHub è un'operazione manuale dell'utente, non eseguibile da questo ambiente).
+
+**Contesto.** Il branch di integrazione del progetto si è sempre chiamato `dev`. Le ADR e i documenti di processo scritti finora (`GITFLOW.md`, `RELEASE_PROCESS.md`, `VERSIONING.md`, `CICD.md`, `DOCKER_IMAGES.md`, `CHECKLISTS.md`, `CODING_RULES.md`, `README.md`) riflettono questo nome. `DOCKER_IMAGES.md` (ADR-020) aveva già introdotto una distinzione esplicita tra "il branch `dev`" e "il tag Docker `develop`", proprio per evitare ambiguità sul registry — una distinzione che con questa ADR non è più necessaria: branch e tag ora condividono lo stesso nome.
+
+**Decisione.**
+- Il branch di integrazione/sviluppo si chiama definitivamente **`develop`** (rinominato da `dev`).
+- `main` resta il branch di **produzione**: riflette sempre e solo uno stato distribuibile. Nessun lavoro di sviluppo viene svolto direttamente su `main`.
+- I tag di release stabili (`vX.Y.Z`) continuano a essere creati **esclusivamente su `main`**, al momento del merge `develop` → `main` — comportamento invariato, già definito in `VERSIONING.md`/`RELEASE_PROCESS.md`, non introdotto da questa ADR.
+- Le release candidate (`vX.Y.Z-rc.N`) continuano a taggarsi direttamente su `develop` durante un'eventuale stabilizzazione — anche questo comportamento preesistente, invariato.
+- Le release GitHub partono esclusivamente dai tag creati su `main`.
+- Le feature continuano a nascere da `feature/*` e a confluire in `develop` tramite Pull Request; `main` si aggiorna solo tramite Pull Request da `develop`.
+- Trigger dei workflow GitHub Actions aggiornati:
+  - `validate.yml`: `push` e `pull_request` verso `develop` e `main` (in precedenza verso `dev` e `main`).
+  - `build-images.yml`: `push` verso `develop` **e** verso `main` (in precedenza solo verso `dev`) — l'estensione a `main` copre anche le immagini costruite al momento del merge di release, non solo durante l'integrazione continua.
+- Nessuna pipeline di Publish/GHCR/Registry/Deploy viene introdotta in questa milestone: resta invariato lo scope, solo trigger dei workflow di build/validazione esistenti e documentazione.
+- Aggiornata tutta la documentazione che referenziava il branch `dev`: `README.md`, `docs/release/GITFLOW.md`, `docs/release/VERSIONING.md`, `docs/release/RELEASE_PROCESS.md`, `docs/deployment/CICD.md`, `docs/deployment/DOCKER_IMAGES.md`, `docs/operations/CHECKLISTS.md`, `docs/ai/CODING_RULES.md`.
+- Le ADR precedenti a questa (in particolare ADR-020, ADR-021, ADR-023) **non vengono modificate**: riflettono correttamente il nome in vigore al momento in cui furono scritte (`dev`). Sono un registro storico, non un documento vivo da tenere sincronizzato col presente — la nota storica in `GITFLOW.md` e questa ADR bastano a evitare confusione futura.
+
+**Motivazione.** `develop` è il nome convenzionale usato dalla stragrande maggioranza dei progetti che seguono un modello Git Flow (o una sua variante semplificata, come già scelto in `GITFLOW.md`), riconoscibile immediatamente da qualunque collaboratore futuro senza bisogno di spiegazioni — a differenza di `dev`, che in questo stesso progetto viene usato con significati diversi in altri contesti (profilo Spring `dev`, file `.env.dev`, cartella `infra/docker/dev/`, environment Postman `local-dev`), creando un'ambiguità terminologica reale tra "il branch" e "l'ambiente di sviluppo locale". Rinominare il branch elimina questa sovrapposizione di significato in modo permanente, non solo nel naming dei tag Docker (come già mitigato solo parzialmente da ADR-020).
+
+**Alternative considerate.**
+- **Mantenere `dev` come nome del branch e continuare a usare `develop` solo per il tag Docker (status quo):** scartata — perpetua la necessità di spiegare ogni volta la differenza tra i due nomi (vedi la nota terminologica che esisteva in `DOCKER_IMAGES.md` prima di questa ADR); un nome solo, usato ovunque, è più semplice da mantenere e da comunicare a un collaboratore futuro.
+- **Rinominare in `integration` o `staging`:** scartate — `develop` è il nome convenzionale riconosciuto dalla maggior parte degli sviluppatori Git Flow; un nome non standard richiederebbe comunque una spiegazione, senza alcun beneficio concreto rispetto alla convenzione già ampiamente adottata.
+- **Rinominare anche il tag Docker in qualcosa di diverso da `develop` per distinguerlo esplicitamente dal branch:** scartata — ora che branch e tag hanno lo stesso significato ("ultimo stato integrato"), usare lo stesso nome per entrambi è più semplice, non più ambiguo: chi guarda un'immagine taggata `develop` sa esattamente da quale branch proviene.
+- **Eseguire il rename del branch (Git) direttamente da questo ambiente:** scartata per vincolo di processo del progetto — questo ambiente non esegue operazioni Git (commit, push, rename, tag, rebase); l'operazione va eseguita dall'utente su GitHub (rinomina branch da interfaccia GitHub, oppure `git branch -m dev develop && git push origin develop && git push origin --delete dev`), aggiornando anche eventuali branch protection rule associate al vecchio nome.
+
+**Conseguenze.**
+- D'ora in avanti tutta la documentazione, i workflow CI e le nuove ADR usano esclusivamente `develop` per riferirsi al branch di integrazione; `dev` non compare più in nessun documento vivente del repository (resta, con nome invariato e concettualmente distinto dal branch Git, solo in contesti non-Git fuori scope di questa ADR: profilo Spring `dev`, `.env.dev`, cartella `infra/docker/dev/`, environment Postman `local-dev`).
+- Il rename del branch remoto su GitHub resta un'azione manuale dell'utente: i workflow aggiornati (`validate.yml`, `build-images.yml`) diventano operativi sul branch `develop` solo dopo che il rename è stato effettivamente eseguito su GitHub (finché il branch remoto si chiama ancora `dev`, i trigger su `develop` semplicemente non scattano).
+- Nessun impatto su Publish/GHCR/Deploy: restano fuori scope, da affrontare in una milestone successiva dedicata.

@@ -2,7 +2,7 @@ name: Build Images
 
 on:
   push:
-    branches: [dev]
+    branches: [develop, main]
 
 concurrency:
   group: build-images-${{ github.ref }}

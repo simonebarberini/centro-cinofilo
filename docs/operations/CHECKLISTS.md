@@ -2,8 +2,8 @@
 
 ## Checklist pre-release
 
-- [ ] Tutte le feature previste per la release sono mergiate su `dev`.
-- [ ] `dev` è verde: unit test backend (`mvn test`) e frontend (`ng test`) passano.
+- [ ] Tutte le feature previste per la release sono mergiate su `develop`.
+- [ ] `develop` è verde: unit test backend (`mvn test`) e frontend (`ng test`) passano.
 - [ ] Suite di integrazione completa (`mvn verify`, con Docker disponibile in CI) verde.
 - [ ] Nessuna migration Flyway distruttiva senza il pattern "expand/contract" (vedi `docs/release/RELEASE_PROCESS.md`).
 - [ ] Versione in `backend/pom.xml` e `frontend/package.json` allineata al prossimo tag.

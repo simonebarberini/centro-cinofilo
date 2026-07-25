@@ -21,7 +21,7 @@ centro-cinofilo/
 |-----------|-----------|
 | [docs/docker-guide.md](docs/docker-guide.md) | Spiegazione completa di Docker, Dockerfile, Docker Compose e come sono usati nel progetto |
 | [docs/release/VERSIONING.md](docs/release/VERSIONING.md) | Strategia SemVer, tag, milestone, prerelease |
-| [docs/release/GITFLOW.md](docs/release/GITFLOW.md) | Branching model: main/dev/feature/hotfix/release |
+| [docs/release/GITFLOW.md](docs/release/GITFLOW.md) | Branching model: main/develop/feature/hotfix |
 | [docs/release/RELEASE_PROCESS.md](docs/release/RELEASE_PROCESS.md) | Processo completo di rilascio, dalla feature al deploy |
 | [docs/deployment/CICD.md](docs/deployment/CICD.md) | Design delle pipeline CI/CD (non ancora implementate) |
 | [docs/deployment/DOCKER_IMAGES.md](docs/deployment/DOCKER_IMAGES.md) | Naming, versioning e registry delle immagini Docker |
@@ -370,23 +370,23 @@ Il progetto utilizza il seguente modello di branching:
   - Merge permesso solo tramite Pull Request
   - Richiede almeno una review
 
-- **`dev`**: Branch di staging/sviluppo. Integrazione di feature completate.
+- **`develop`**: Branch di staging/sviluppo. Integrazione di feature completate.
   - Branch di lavoro principale per integrare feature
   - Merge da feature branches tramite Pull Request
 
 ### Feature Branches
 
 - **`feature/<feature-name>`**: Branch per lo sviluppo di nuove feature
-  - Create da: `dev`
-  - Merge verso: `dev`
+  - Create da: `develop`
+  - Merge verso: `develop`
   - Naming: `feature/user-authentication`, `feature/add-dog-profile`
 
 ### Workflow di Sviluppo
 
 ```bash
-# 1. Creare una feature branch da dev
-git checkout dev
-git pull origin dev
+# 1. Creare una feature branch da develop
+git checkout develop
+git pull origin develop
 git checkout -b feature/mia-feature
 
 # 2. Sviluppare e committare (seguendo Conventional Commits)
@@ -396,7 +396,7 @@ git commit -m "feat(backend): add new endpoint"
 # 3. Push della feature branch
 git push origin feature/mia-feature
 
-# 4. Creare Pull Request su GitHub verso dev
+# 4. Creare Pull Request su GitHub verso develop
 
 # 5. Dopo merge, eliminare la feature branch
 git branch -d feature/mia-feature
@@ -405,10 +405,10 @@ git push origin --delete feature/mia-feature
 
 ### Merge verso Main
 
-Quando il codice in `dev` è stabile e pronto per il deploy:
+Quando il codice in `develop` è stabile e pronto per il deploy:
 
 ```bash
-# 1. Creare Pull Request da dev verso main
+# 1. Creare Pull Request da develop verso main
 # 2. Completare la review
 # 3. Merge con commit message: chore(release): vX.Y.Z
 
@@ -553,21 +553,21 @@ test(backend): add unit tests for UserService
 
 #### 4. Branching Strategy
 
-- **Lavoro su feature locali**: Creare branch `feature/<nome-feature>` da `dev`
+- **Lavoro su feature locali**: Creare branch `feature/<nome-feature>` da `develop`
 - **Prima di fare commit**: Assicurarsi di essere su branch `feature/*`
-- **Pull Request**: Sempre verso `dev`, mai direttamente a `main`
+- **Pull Request**: Sempre verso `develop`, mai direttamente a `main`
 - **Main**: Reserved per release stabili
 
 ```bash
 # Flusso tipico
-git checkout dev
-git pull origin dev
+git checkout develop
+git pull origin develop
 git checkout -b feature/mia-feature
 # ... fare il lavoro ...
 git add .
 git commit -m "feat(backend): add dog profile endpoint"
 git push origin feature/mia-feature
-# Creare PR su GitHub verso dev
+# Creare PR su GitHub verso develop
 ```
 
 #### 5. Code Quality

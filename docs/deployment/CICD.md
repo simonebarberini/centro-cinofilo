@@ -1,6 +1,6 @@
 # CI/CD Pipeline Design — Centro Cinofilo
 
-**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`dev` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). Le pipeline **"Push su dev"**, **"Release"** e **"Manual Deploy"** (sezioni 2-4) restano solo design, non ancora implementate: richiedono build/push di immagini Docker e deploy, esplicitamente fuori scope della milestone corrente.
+**Stato implementazione:** la pipeline **"Pull Request"** (sezione 1) è **implementata** in `.github/workflows/validate.yml` (vedi ADR-021), con due differenze rispetto al design originale: oltre a `pull_request` si attiva anche su `push` verso `main`/`develop` (scelta transitoria, vedi ADR-021), e il job frontend esegue **solo la build**, senza test Angular, perché la suite di test non esiste ancora nel progetto (scelta transitoria, vedi ADR-022). La pipeline **"Build Images"** (sezione 2) è **parzialmente implementata** in `.github/workflows/build-images.yml` (vedi ADR-023): costruisce le immagini Docker di backend e frontend ad ogni push su `develop` o `main`, senza però taggarle né pubblicarle su alcun registry (`push: false` — Job 5 e il tagging restano fuori scope, arriveranno con la pipeline di Publish/GHCR). Le pipeline **"Release"** e **"Manual Deploy"** (sezioni 3-4) restano solo design, non ancora implementate: richiedono push di immagini Docker su registry e deploy, esplicitamente fuori scope della milestone corrente.
 
 Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberini/centro-cinofilo`). GitHub Actions è la scelta naturale perché nativa alla piattaforma già in uso (nessun account/servizio terzo da collegare), con integrazione diretta al Container Registry di GitHub (GHCR) tramite `GITHUB_TOKEN` senza credenziali aggiuntive da gestire (vedi `DOCKER_IMAGES.md`). Alternative come GitLab CI, CircleCI o Jenkins richiederebbero uno spostamento del repository o un servizio esterno aggiuntivo, senza un vantaggio concreto per questo progetto.
 
@@ -10,7 +10,7 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 
 | | |
 |---|---|
-| **Trigger** | `pull_request` verso `dev` o `main`, **più `push`** verso `dev` o `main` (differenza rispetto al design originale, vedi ADR-021) |
+| **Trigger** | `pull_request` verso `develop` o `main`, **più `push`** verso `develop` o `main` (differenza rispetto al design originale, vedi ADR-021) |
 | **Job 1 — Backend** | `mvn -B clean test` (solo Surefire/unit test, nessun Docker richiesto — coerente con ADR-018), con cache Maven nativa (`actions/setup-java`) |
 | **Job 2 — Frontend** | `npm ci` + `npm run build` — **solo build**, nessun test eseguito (la suite di test Angular non esiste ancora, vedi ADR-022)| **Ordine di esecuzione** | Job 1 e Job 2 **in parallelo** (indipendenti, nessuna dipendenza tra backend e frontend a livello di build/unit test) |
 | **Dipendenze** | Nessuna tra i due job |
@@ -18,11 +18,11 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 | **Esito** | Check di stato su PR/push; con branch protection attiva in futuro, blocca il merge se rosso |
 | **File** | `.github/workflows/validate.yml` |
 
-### 2. Workflow "Push su dev"
+### 2. Workflow "Build Images" — **parzialmente implementato** come `build-images.yml`
 
 | | |
 |---|---|
-| **Trigger** | `push` su `dev` (tipicamente conseguenza del merge di una PR) |
+| **Trigger** | `push` su `develop` o su `main` (tipicamente conseguenza del merge di una PR, o del merge `develop` → `main` in fase di release) |
 | **Job 1 — Backend: build + unit test** | Come sopra |
 | **Job 2 — Frontend: build + unit test** | Come sopra |
 | **Job 3 — Build immagine backend** | Solo se Job 1 passa. Build Dockerfile esistente, tag `sha-<shortsha>` e `develop` |
@@ -36,7 +36,7 @@ Il repository è già ospitato su GitHub (`origin` → `github.com/simonebarberi
 
 | | |
 |---|---|
-| **Trigger** | `push` di un tag `v*.*.*` o `v*.*.*-rc.*` (le RC si taggano direttamente su `dev`, le release stabili al merge `dev` → `main` — non esiste più un branch `release/*`, vedi `GITFLOW.md`) |
+| **Trigger** | `push` di un tag `v*.*.*` o `v*.*.*-rc.*` (le RC si taggano direttamente su `develop`, le release stabili al merge `develop` → `main` — non esiste più un branch `release/*`, vedi `GITFLOW.md`) |
 | **Job 1 — Suite completa** | `mvn verify` (Surefire + Failsafe, quindi anche i 101 Integration Test con Testcontainers — richiede un runner con Docker disponibile, es. i runner standard `ubuntu-latest` di GitHub Actions, che supportano Docker-in-Docker nativamente, a differenza del sandbox Replit) |
 | **Job 2 — Build immagini versionate** | Solo se Job 1 passa. Tag `vX.Y.Z` + `latest` per entrambe le immagini |
 | **Job 3 — Push su registry** | Dopo Job 2 |

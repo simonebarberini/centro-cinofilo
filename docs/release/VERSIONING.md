@@ -55,7 +55,7 @@ Backend e frontend **non vengono versionati in modo indipendente**. Si usa un'un
 
 ## Quando creare un tag Git
 
-Un tag `vX.Y.Z` si crea **una sola volta**, nel momento in cui una release diventa stabile su `main` (vedi `GITFLOW.md` e `RELEASE_PROCESS.md` per il flusso completo). Non si taggano commit su `dev` o su branch `feature/*`.
+Un tag `vX.Y.Z` si crea **una sola volta**, nel momento in cui una release diventa stabile su `main` (vedi `GITFLOW.md` e `RELEASE_PROCESS.md` per il flusso completo). Non si taggano commit su `develop` o su branch `feature/*`.
 
 ## Convenzione dei tag
 
@@ -66,7 +66,7 @@ v<MAJOR>.<MINOR>.<PATCH>-beta.<N>   → prerelease (se necessario) es. v1.4.0-be
 ```
 
 - Il prefisso `v` è obbligatorio (convenzione universale, riconosciuta da GitHub Releases e dalla maggior parte dei tool di changelog automatico).
-- Le release candidate si taggano **direttamente da `dev`** (non esiste più un branch `release/*` dedicato — vedi `GITFLOW.md` per la motivazione della rimozione).
+- Le release candidate si taggano **direttamente da `develop`** (non esiste più un branch `release/*` dedicato — vedi `GITFLOW.md` per la motivazione della rimozione).
 - Una RC che supera i test diventa la release stabile: si ritagga lo stesso commit come `vX.Y.Z` (senza suffisso), non se ne crea uno nuovo con modifiche.
 
 ## Milestone e fasi

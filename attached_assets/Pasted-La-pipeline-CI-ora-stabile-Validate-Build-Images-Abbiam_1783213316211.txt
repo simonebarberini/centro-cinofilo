@@ -1,0 +1,129 @@
+La pipeline CI è ora stabile:
+
+Validate ✔
+Build Images ✔
+
+Abbiamo deciso di evolvere definitivamente la strategia Git e di release.
+
+Questa è una modifica architetturale ai processi di sviluppo, quindi deve essere documentata con una nuova ADR.
+
+Nuova strategia Git
+
+Il branch di sviluppo diventa definitivamente:
+
+develop
+
+Il branch di produzione rimane:
+
+main
+
+Da questo momento:
+
+develop è il branch di integrazione e sviluppo.
+main rappresenta sempre uno stato distribuibile.
+I tag (vX.Y.Z) vengono creati esclusivamente su main.
+Le release GitHub partiranno dai tag creati su main.
+Nessun lavoro verrà più svolto direttamente su main.
+
+Le feature continueranno a nascere da:
+
+feature/*
+
+e verranno integrate in develop.
+
+main verrà aggiornato tramite Pull Request da develop.
+
+Obiettivo della milestone
+
+Aggiornare completamente repository, documentazione e workflow affinché riflettano questa strategia.
+
+Workflow GitHub Actions
+
+Aggiorna tutti i workflow esistenti.
+
+Validate:
+
+trigger:
+push su develop
+push su main
+pull_request verso develop
+pull_request verso main
+
+Build Images:
+
+trigger:
+push su develop
+push su main
+
+Non introdurre ancora alcuna pipeline di Release.
+
+La pipeline di publish su GHCR arriverà nella milestone successiva.
+
+Documentazione
+
+Aggiorna tutta la documentazione che oggi fa riferimento a dev.
+
+In particolare verificare e aggiornare:
+
+README
+docs/release/GITFLOW.md
+docs/release/RELEASE_PROCESS.md
+docs/deployment/CICD.md
+docs/release/VERSIONING.md
+docs/operations/CHECKLISTS.md
+
+e qualsiasi altro documento che faccia riferimento al branch di sviluppo.
+
+Da questo momento la documentazione deve usare esclusivamente:
+
+develop
+
+come branch di sviluppo.
+
+ADR
+
+Aggiungere una nuova ADR (non modificare le precedenti).
+
+La ADR deve documentare:
+
+passaggio definitivo da dev a develop;
+develop come branch di integrazione;
+main come branch di produzione;
+tag creati esclusivamente su main;
+release costruite esclusivamente dai tag di main;
+motivazione della scelta;
+alternative considerate.
+Vincoli
+
+Non implementare ancora:
+
+Publish Images
+GHCR
+Docker Registry
+Deploy
+VPS
+Caddy
+Backup
+Monitoring
+
+Questa milestone aggiorna esclusivamente:
+
+workflow GitHub Actions;
+documentazione;
+ADR.
+Verifiche finali
+
+Al termine verificare che:
+
+tutti i workflow referenzino develop e main;
+non esistano più riferimenti residui al branch dev nella documentazione (salvo eventuali riferimenti storici esplicitamente marcati come tali);
+la nuova strategia Git sia coerente in tutti i documenti.
+
+Non creare commit Git.
+
+Al termine restituisci esclusivamente:
+
+file modificati;
+riepilogo delle modifiche;
+decisioni progettuali emerse;
+conferma che l'intero repository utilizza ora develop come branch di sviluppo.

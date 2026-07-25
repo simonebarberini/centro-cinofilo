@@ -49,6 +49,7 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+.env.prod
 # .env.dev is intentionally tracked: it only holds non-sensitive local dev defaults
 dist/
 build/

@@ -296,6 +296,30 @@ docker stop mailhog && docker rm mailhog
 cd backend && mvn clean
 ```
 
+---
+
+## Produzione
+
+### Accesso remoto al database
+
+In produzione Postgres pubblica la porta solo su `127.0.0.1` del server (vedi `infra/docker/prod/docker-compose.yml`), quindi non è mai raggiungibile direttamente da internet. Per connettersi da remoto (es. con DBeaver, pgAdmin o `psql`) si apre un tunnel SSH verso il server:
+
+```bash
+ssh -L 5432:localhost:5432 <utente>@<host-produzione>
+```
+
+Poi ci si connette al DB come se fosse locale, usando le credenziali in `.env` (server):
+
+```
+Host:     localhost
+Porta:    5432
+Database: ${POSTGRES_DB}
+Utente:   ${POSTGRES_USER}
+Password: ${POSTGRES_PASSWORD}
+```
+
+La porta pubblicata sul server è configurabile con la variabile opzionale `POSTGRES_PORT` in `.env` (default `5432`), utile se sulla propria macchina è già in uso una porta 5432 locale.
+
 ## Convenzioni di Sviluppo
 
 ### Conventional Commits
